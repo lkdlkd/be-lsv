@@ -7,8 +7,8 @@ const userSchema = new mongoose.Schema({
   name:{ type: String, required: false },
   password: { type: String, required: true },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
-  balance: { type: Number, default: 0 }, // Số dư mặc định khi tạo tài khoản
-  tongnap: { type: Number, default: 0 }, // Tổng tiền đã nạp
+  balance: { type: Number, default: 100 }, // Số dư mặc định khi tạo tài khoản
+  tongnap: { type: Number, default: 100 }, // Tổng tiền đã nạp
 
 });
 

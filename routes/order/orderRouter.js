@@ -4,12 +4,13 @@ const router = express.Router();
 const { addOrder } = require('../../controllers/order/addOrder');
 const { getOrdersByCategoryAndUser , GetOrderscreach } = require('../../controllers/order/getIdOrder');
 const { getAllOrder , deleteOrder } = require('../../controllers/order/getAllOrder');
+const { authenticate } = require('../../controllers/user/authenticate'); // Đường dẫn đúng đến file middleware
 
 
-router.post('/add', addOrder);
-router.get('/orders', getOrdersByCategoryAndUser);
-router.get('/getOrder', getAllOrder);
-router.delete('/:orderId', deleteOrder);
-router.get('/screach', GetOrderscreach);
+router.post('/add',authenticate, addOrder);
+router.get('/orders',authenticate, getOrdersByCategoryAndUser);
+router.get('/getOrder',authenticate, getAllOrder);
+router.delete('/:orderId',authenticate, deleteOrder);
+router.get('/screach',authenticate, GetOrderscreach);
 
 module.exports = router;

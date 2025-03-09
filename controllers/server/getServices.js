@@ -23,7 +23,7 @@ exports.getServices = async (req, res) => {
         id : service.id,
         maychu : service.maychu,
         Linkdv : service.Linkdv,
-        serviceId: service.serviceId, // hoặc service.serviceId nếu bạn có trường này
+        // serviceId: service.serviceId,  hoặc service.serviceId nếu bạn có trường này
         name: service.name,
         rate: service.rate,
         min: service.min,

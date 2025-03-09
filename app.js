@@ -4,6 +4,7 @@ const express = require('express');
 const connectDB = require('./database/connection');
 const apiRouter = require('./routes/server/Getdichvu');
 const smmRoutes = require('./routes/Smm/smmRoutes');
+require('./controllers/tool/updateServicePrices');
 
 const apiuser = require('./routes/user/user');
 
@@ -33,7 +34,6 @@ app.use('/api/user', apiuser);
 
 // Use API Router
 app.use('/api/server', apiRouter);
-
 
 //Smm router 
 // Sử dụng router
