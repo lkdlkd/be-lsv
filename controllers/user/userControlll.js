@@ -1,90 +1,84 @@
 const jwt = require("jsonwebtoken");
 const User = require("../../models/User");
-
+const HistoryUser = require('../../models/HistoryUser');
 
 // Đăng nhập
 exports.login = async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    const user = await User.findOne({ username });
-    if (!user || !(await user.comparePassword(password))) {
-      return res.status(401).json({ error: "Sai tên người dùng hoặc mật khẩu" });
+    try {
+        const { username, password } = req.body;
+        const user = await User.findOne({ username });
+        if (!user || !(await user.comparePassword(password))) {
+            return res.status(401).json({ error: "Sai tên người dùng hoặc mật khẩu" });
+        }
+        // Trả về token đã lưu trong user (hoặc tạo token mới nếu cần)
+        return res.status(200).json({ token: user.token, role: user.role, username: user.username });
+    } catch (error) {
+        console.error("Login error:", error);
+        return res.status(500).json({ error: "Có lỗi xảy ra khi đăng nhập" });
     }
-
-    // Tạo token
-    const token = jwt.sign({ userId: user._id ,role: user.role}, "secretKey", { expiresIn: "1d" });
-    res.status(200).json({ token, role: user.role ,username: user.username });
-  } catch (error) {
-    res.status(500).json({ error: "Có lỗi xảy ra khi đăng nhập" });
-  }
 };
+
 // Đăng ký
 exports.register = async (req, res) => {
-  try {
-    const { username, password } = req.body;
+    try {
+        const { username, password } = req.body;
 
-    // Kiểm tra nếu người dùng đã tồn tại
-    const existingUser = await User.findOne({ username });
-    if (existingUser) {
-      return res.status(400).json({ error: "Tên người dùng đã tồn tại" });
+        // Kiểm tra nếu người dùng đã tồn tại
+        const existingUser = await User.findOne({ username });
+        if (existingUser) {
+            return res.status(400).json({ error: "Tên người dùng đã tồn tại" });
+        }
+
+        // Kiểm tra xem đã có admin chưa
+        const isAdminExists = await User.findOne({ role: "admin" });
+
+        // Tạo người dùng mới, không cần truyền capbac vì schema đã có default
+        const user = new User({
+            username,
+            password,
+            role: isAdminExists ? "user" : "admin",
+            token: "", // Tạm thời để rỗng, sẽ cập nhật sau khi tạo token
+        });
+        await user.save();
+
+        // Tạo token cho user mới (bao gồm cả capbac từ schema)
+        const token = jwt.sign(
+            { userId: user._id, role: user.role, capbac: user.capbac },
+            "secretKey",
+            { expiresIn: "1d" }
+        );
+        // Cập nhật token vào user
+        user.token = token;
+        await user.save();
+
+        return res.status(201).json({ message: "Đăng ký thành công", userId: user._id, token });
+    } catch (error) {
+        console.error("Đăng ký lỗi:", error);
+        return res.status(500).json({ error: "Có lỗi xảy ra. Vui lòng thử lại." });
     }
-
-    // Kiểm tra xem đã có admin chưa
-    const isAdminExists = await User.findOne({ role: "admin" });
-
-    // Tạo người dùng mới
-    const user = new User({
-      username,
-      password,
-      role: isAdminExists ? "user" : "admin",
-    });
-
-    // Lưu người dùng và lấy userId (MongoDB tự tạo _id)
-    await user.save();
-
-    // Sau khi lưu, MongoDB sẽ tự động tạo _id, bạn có thể lấy _id làm userId
-    const userId = user._id;
-
-    // Cập nhật lại userId nếu cần thiết
-    user.userId = userId;
-    await user.save();
-
-    res.status(201).json({ message: "Đăng ký thành công", userId });
-  } catch (error) {
-    console.error("Đăng ký lỗi:", error); // Ghi log để kiểm tra lỗi
-    res.status(500).json({ error: "Có lỗi xảy ra. Vui lòng thử lại." });
-  }
 };
 
+// Lấy số dư người dùng
 exports.getBalance = async (req, res) => {
     const { username } = req.query;
-    // console.log("Username tra ve:", username);
-
     try {
-        // Tìm người dùng theo username, loại bỏ mật khẩu
         const user = await User.findOne({ username }).select("-password");
-    //   const user = await User.find({ username }).populate('username');
-
-        // Kiểm tra xem người dùng có tồn tại hay không
         if (!user) {
             return res.status(404).json({ error: 'Người dùng không tồn tại' });
         }
-
-        // Trả về tất cả thông tin của người dùng trừ mật khẩu
-        res.status(200).json(user);
+        return res.status(200).json(user);
     } catch (error) {
-        console.error(error);  // Ghi lỗi ra console để kiểm tra chi tiết
-        res.status(500).json({ error: 'Có lỗi xảy ra. Vui lòng thử lại sau.' });
+        console.error("Get balance error:", error);
+        return res.status(500).json({ error: 'Có lỗi xảy ra. Vui lòng thử lại sau.' });
     }
 };
 
-
-// // Lấy danh sách người dùng có phân trang
+// Lấy danh sách người dùng có phân trang
 exports.getUsers = async (req, res) => {
     try {
         let { page, limit } = req.query;
         if (limit === "all") {
-            const users = await User.find(); // Lấy tất cả user
+            const users = await User.find();
             return res.json(users);
         }
         page = parseInt(page) || 1;
@@ -95,18 +89,16 @@ exports.getUsers = async (req, res) => {
             .limit(limit);
 
         const total = await User.countDocuments();
-
-        res.json({
+        return res.json({
             total,
             page,
             totalPages: Math.ceil(total / limit),
-            users
+            users,
         });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: error.message });
     }
 };
-
 
 // Cập nhật thông tin người dùng
 exports.updateUser = async (req, res) => {
@@ -117,40 +109,57 @@ exports.updateUser = async (req, res) => {
         if (!updatedUser) {
             return res.status(404).json({ message: 'User not found' });
         }
-        res.json(updatedUser);
+        return res.json(updatedUser);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: error.message });
     }
 };
+
+// Cộng tiền vào số dư
 exports.addBalance = async (req, res) => {
     try {
-        const { id } = req.params; // Lấy ID của user từ URL
-        const { amount } = req.body; // Số tiền cần cộng vào số dư
-  
-        // Kiểm tra amount có hợp lệ không
+        const { id } = req.params;
+        const { amount } = req.body;
+
         if (!amount || isNaN(amount) || amount <= 0) {
             return res.status(400).json({ message: 'Số tiền không hợp lệ' });
         }
-  
-        // Cập nhật số dư và tổng tiền nạp
+
         const updatedUser = await User.findByIdAndUpdate(
             id,
-            { $inc: { balance: amount, tongnap: amount } }, // Cộng tiền vào cả balance và tongnap
-            { new: true } // Trả về user sau khi cập nhật
+            { $inc: { balance: amount, tongnap: amount } },
+            { new: true }
         );
-  
-        // Kiểm tra user có tồn tại không
+
         if (!updatedUser) {
             return res.status(404).json({ message: 'Người dùng không tồn tại' });
         }
-  
-        res.json({ message: 'Cộng tiền thành công', user: updatedUser });
+
+        // Lưu lịch sử giao dịch
+        const currentBalance = updatedUser.balance;
+        const historyDataa = new HistoryUser({
+            username: updatedUser.username,
+            madon: "null",
+            hanhdong: 'Cộng tiền',
+            link: "",
+            tienhientai: currentBalance,
+            tongtien: amount,
+            tienconlai: currentBalance + amount,
+            createdAt: new Date(),
+            mota: 'Cộng thành công số tiền ' + amount,
+        });
+        console.log('History:', historyDataa);
+        await historyDataa.save();
+
+        res.status(200).json({ message: 'Cộng tiền thành công', user: updatedUser  });
+
+        // res.json({ message: 'Cộng tiền thành công', user: updatedUser });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Lỗi server' });
+        console.error("Add balance error:", error);
+        return res.status(500).json({ message: 'Lỗi server' });
     }
-  };
-  
+};
+
 // Xóa người dùng
 exports.deleteUser = async (req, res) => {
     try {
@@ -159,10 +168,8 @@ exports.deleteUser = async (req, res) => {
         if (!deletedUser) {
             return res.status(404).json({ message: 'User not found' });
         }
-        res.json({ message: 'User deleted successfully' });
+        return res.json({ message: 'User deleted successfully' });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        return res.status(500).json({ message: error.message });
     }
 };
-
-
