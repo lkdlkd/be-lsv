@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const User = require("../../models/User");
 const HistoryUser = require('../../models/HistoryUser');
+const axios = require('axios');
 
 // Đăng nhập
 exports.login = async (req, res) => {
@@ -51,6 +52,31 @@ exports.register = async (req, res) => {
         user.token = token;
         await user.save();
 
+
+
+
+        const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
+        const telegramChatId = process.env.TELEGRAM_CHAT_ID;
+        if (telegramBotToken && telegramChatId) {
+
+            const telegramMessage = `📌 *Có khách mới được tạo!*\n\n` +
+                `👤 *Khách hàng:* ${username}\n` +
+                `🔹 *tạo lúc* ${new Date()}\n`;
+            try {
+                await axios.post(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+                    chat_id: telegramChatId,
+                    text: telegramMessage,
+                });
+                console.log('Thông báo Telegram đã được gửi.');
+            } catch (telegramError) {
+                console.error('Lỗi gửi thông báo Telegram:', telegramError.message);
+            }
+        } else {
+            console.log('Thiếu thông tin cấu hình Telegram.');
+        }
+
+
+        
         return res.status(201).json({ message: "Đăng ký thành công", userId: user._id, token });
     } catch (error) {
         console.error("Đăng ký lỗi:", error);
@@ -151,7 +177,7 @@ exports.addBalance = async (req, res) => {
         console.log('History:', historyDataa);
         await historyDataa.save();
 
-        res.status(200).json({ message: 'Cộng tiền thành công', user: updatedUser  });
+        res.status(200).json({ message: 'Cộng tiền thành công', user: updatedUser });
 
         // res.json({ message: 'Cộng tiền thành công', user: updatedUser });
     } catch (error) {
