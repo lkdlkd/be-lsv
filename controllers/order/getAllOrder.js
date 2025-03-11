@@ -1,12 +1,41 @@
-
 const Order = require('../../models/Order');
+const jwt = require("jsonwebtoken");
 
-// get trạng thái đơn hàng 
+// Hàm kiểm tra token và quyền admin
+const verifyAdmin = async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    res.status(401).json({ success: false, message: 'Không có token trong header' });
+    return null;
+  }
+  const token = authHeader.split(' ')[1];
+  if (!token) {
+    res.status(401).json({ success: false, message: 'Token không hợp lệ' });
+    return null;
+  }
+  try {
+    const decoded = jwt.verify(token, "secretKey");
+    if (decoded.role !== "admin") {
+      res.status(403).json({ success: false, message: 'Chỉ admin mới có quyền thực hiện' });
+      return null;
+    }
+    return decoded;
+  } catch (err) {
+    res.status(401).json({ success: false, message: 'Token hết hạn hoặc không hợp lệ' });
+    return null;
+  }
+};
+
+// Lấy trạng thái đơn hàng 
 async function getAllOrder(req, res) {
-const {  category } = req.query;
+  // Kiểm tra token và quyền admin
+  const decoded = await verifyAdmin(req, res);
+  if (!decoded) return;
+  const { category } = req.query;
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10; // Số đơn mỗi trang
   const skip = (page - 1) * limit;
+
   if (!category) {
     return res.status(400).json({ message: 'Thiếu thông tin userId hoặc category' });
   }
@@ -17,8 +46,8 @@ const {  category } = req.query;
       .sort({ createdAt: -1 }) // Sắp xếp theo createdAt giảm dần (mới nhất lên đầu)
       .skip(skip)
       .limit(limit)
-      .populate( 'category');
-      
+      .populate('category');
+
     // Đếm tổng số đơn để tính số trang
     const totalOrders = await Order.countDocuments({ category });
 
@@ -37,8 +66,12 @@ const {  category } = req.query;
   }
 }
 
-// Hàm xóa đơn hàng theo _id
+// Hàm xóa đơn hàng theo _id (chỉ admin)
 async function deleteOrder(req, res) {
+  // Kiểm tra token và quyền admin
+  const decoded = await verifyAdmin(req, res);
+  if (!decoded) return;
+
   const { orderId } = req.params; // Lấy _id của đơn hàng cần xóa từ URL
   try {
     // Tìm và xóa đơn hàng theo _id

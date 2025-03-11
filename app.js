@@ -4,7 +4,8 @@ const express = require('express');
 const connectDB = require('./database/connection');
 const apiRouter = require('./routes/server/Getdichvu');
 const smmRoutes = require('./routes/Smm/smmRoutes');
-require('./controllers/tool/updateServicePrices');
+// require('./controllers/tool/updateServicePrices');
+require('./controllers/tool/checkOrderStatus');
 
 const apiuser = require('./routes/user/user');
 

@@ -9,6 +9,7 @@ const orderSchema = new mongoose.Schema({
   comments: { type: String, required: false }, // cmt vụ đã mua
   link: { type: String, required: true }, // link đã mua
   start: { type: Number, default: 0 }, //  số lượng bắt đầu
+  dachay: { type: Number, default: 0 }, // số lượng bắt đầu
   quantity: { type: Number, required: false },// số lượng mua 
   rate: { type: Number, required: true },// giá
   totalCost: { type: Number, required: true },// tổng tiền mua

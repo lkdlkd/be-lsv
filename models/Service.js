@@ -17,8 +17,8 @@ const serviceSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true }, // Hiển thị hoặc ẩn dịch vụ
   category: { type: String, required: true },//like fb/ sub fb...
   comment: { type: String, enum: ["on", "off"], default: "of" },//chức năng get id sau khi nhập link mua
-  reaction: { type: String, enum: ["on", "off"], default: "on" },//chức năng get id sau khi nhập link mua
-  matlive: { type: String, enum: ["on", "off"], default: "on" },//chức năng get id sau khi nhập link mua
+  reaction: { type: String, enum: ["on", "off"], default: "of" },//chức năng get id sau khi nhập link mua
+  matlive: { type: String, enum: ["on", "off"], default: "of" },//chức năng get id sau khi nhập link mua
 }, { timestamps: true }); // Thêm createdAt và updatedAt tự động
 
 module.exports = mongoose.model('Service', serviceSchema);

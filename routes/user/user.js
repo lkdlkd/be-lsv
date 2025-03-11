@@ -11,6 +11,7 @@ router.get('/:userId',authenticate, userControlll.getBalance);
 
 router.get('/',authenticate, userControlll.getUsers);
 router.put('/add/:id/balance',authenticate, userControlll.addBalance);
+router.put('/changePassword/:id',authenticate, userControlll.changePassword);
 
 router.put('/update/:id',authenticate, userControlll.updateUser);
 router.delete('/delete/:id', authenticate,userControlll.deleteUser);

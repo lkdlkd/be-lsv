@@ -1,4 +1,5 @@
 const axios = require('axios');
+const jwt = require("jsonwebtoken");
 const Service = require('../../models/Service');
 const Order = require('../../models/Order');
 const HistoryUser = require('../../models/HistoryUser');
@@ -6,7 +7,30 @@ const User = require('../../models/User');
 const SmmSv = require("../../models/SmmSv");
 
 async function addOrder(req, res) {
+  // Kiểm tra token từ header
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ message: 'Không có token trong header' });
+  }
+  const token = authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ message: 'Token không hợp lệ' });
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, "secretKey");
+  } catch (err) {
+    return res.status(401).json({ message: 'Token hết hạn hoặc không hợp lệ' });
+  }
+  
+  // So sánh username trong token và trong body
+  const tokenUsername = decoded.username;
   const { username, link, category, quantity, magoi, note, comments } = req.body;
+  if (username !== tokenUsername) {
+    return res.status(403).json({ message: 'Bạn không có quyền thực hiện hành động này' });
+  }
+
   const qty = Number(quantity);
   const formattedComments = comments ? comments.replace(/\r?\n/g, "\r\n") : "";
 
@@ -21,7 +45,7 @@ async function addOrder(req, res) {
     // --- Lấy cấu hình API từ CSDL ---
     const smmSvConfig = await SmmSv.findOne({ name: serviceFromDb.DomainSmm });
     if (!smmSvConfig || !smmSvConfig.url_api || !smmSvConfig.api_token) {
-      return res.status(500).json({ message: 'chưa được thiết lập' });
+      return res.status(500).json({ message: 'Chưa được thiết lập cấu hình SMM' });
     }
     console.log("smm :", smmSvConfig);
 
@@ -129,23 +153,20 @@ async function addOrder(req, res) {
     console.log('Order saved successfully!');
 
     // --- Bước 8: Gửi thông báo về Telegram ---
-    // Lấy token và chat_id từ biến môi trường
     const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
     const telegramChatId = process.env.TELEGRAM_CHAT_ID;
     if (telegramBotToken && telegramChatId) {
-
       const telegramMessage = `📌 *Đơn hàng mới đã được tạo!*\n\n` +
-      `👤 *Khách hàng:* ${username}\n` +
-      `🔹 *Dịch vụ:* ${serviceFromDb.name}\n` +
-      `🔗 *Link:* ${link}\n` +
-      `📌 *Số lượng:* ${qty}\n` +
-      `💰 *TIền cũ:* ${tiencu.toLocaleString()} VNĐ\n` +
-      `💰 *Tổng tiền:* ${totalCost.toLocaleString()} VNĐ\n` +
-      `💰 *TIền còn lại:* ${newBalance.toLocaleString()} VNĐ\n` +
-
-      `🆔 *Mã đơn:* ${newMadon}\n` +
-      `📆 *Ngày tạo:* ${createdAt.toLocaleString()}\n` +
-      `📝 *Ghi chú:* ${note || 'Không có'}`;
+        `👤 *Khách hàng:* ${username}\n` +
+        `🔹 *Dịch vụ:* ${serviceFromDb.name}\n` +
+        `🔗 *Link:* ${link}\n` +
+        `📌 *Số lượng:* ${qty}\n` +
+        `💰 *TIền cũ:* ${tiencu.toLocaleString()} VNĐ\n` +
+        `💰 *Tổng tiền:* ${totalCost.toLocaleString()} VNĐ\n` +
+        `💰 *TIền còn lại:* ${newBalance.toLocaleString()} VNĐ\n` +
+        `🆔 *Mã đơn:* ${newMadon}\n` +
+        `📆 *Ngày tạo:* ${createdAt.toLocaleString()}\n` +
+        `📝 *Ghi chú:* ${note || 'Không có'}`;
 
       try {
         await axios.post(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
