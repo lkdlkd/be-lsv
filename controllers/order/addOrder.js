@@ -25,11 +25,11 @@ async function addOrder(req, res) {
   }
   
   // So sánh username trong token và trong body
-  const tokenUsername = decoded.username;
+  // const tokenUsername = decoded.username;
   const { username, link, category, quantity, magoi, note, comments } = req.body;
-  if (username !== tokenUsername) {
-    return res.status(403).json({ message: 'Bạn không có quyền thực hiện hành động này' });
-  }
+  // if (username !== tokenUsername) {
+  //   return res.status(403).json({ message: 'Bạn không có quyền thực hiện hành động này' });
+  // }
 
   const qty = Number(quantity);
   const formattedComments = comments ? comments.replace(/\r?\n/g, "\r\n") : "";
@@ -45,7 +45,7 @@ async function addOrder(req, res) {
     // --- Lấy cấu hình API từ CSDL ---
     const smmSvConfig = await SmmSv.findOne({ name: serviceFromDb.DomainSmm });
     if (!smmSvConfig || !smmSvConfig.url_api || !smmSvConfig.api_token) {
-      return res.status(500).json({ message: 'Chưa được thiết lập cấu hình SMM' });
+      return res.status(500).json({ message: 'Lỗi khi mua dịch vụ, vui lòng ib admin' });
     }
     console.log("smm :", smmSvConfig);
 
@@ -69,13 +69,16 @@ async function addOrder(req, res) {
     const totalCost = parseFloat((serviceFromDb.rate * qty).toFixed(2));
 
     if (serviceFromApi.rate > serviceFromDb.rate) {
-      return res.status(400).json({ message: 'Chưa chỉnh giá, vui lòng ib admin' });
+      return res.status(400).json({ message: 'Lỗi khi mua dịch vụ, vui lòng ib admin' });
     }
 
     // --- Bước 3: Kiểm tra số dư tài khoản của người dùng ---
     const user = await User.findOne({ username });
     if (!user) {
       return res.status(400).json({ message: 'Người dùng không tồn tại' });
+    }
+    if (qty < serviceFromDb.min) {
+      return res.status(400).json({ message: 'Số lượng vượt quá giới hạn' });
     }
     if (qty > serviceFromDb.max) {
       return res.status(400).json({ message: 'Số lượng vượt quá giới hạn' });
@@ -127,7 +130,7 @@ async function addOrder(req, res) {
       rate: parseFloat(serviceFromDb.rate.toFixed(2)),
       totalCost,
       createdAt,
-      status: purchaseResponse.data.status || 'đang chạy',
+      status: purchaseResponse.data.status || 'Pending',
       note,
       comments: formattedComments,
     });

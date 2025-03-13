@@ -14,7 +14,7 @@ const orderSchema = new mongoose.Schema({
   rate: { type: Number, required: true },// giá
   totalCost: { type: Number, required: true },// tổng tiền mua
   createdAt: { type: Date, default: Date.now }, // thời gian mua
-  status: { type: String, default: 'đang chạy' },// trạng thái đơn hàng
+  status: { type: String, default: 'Pending' },// trạng thái đơn hàng
   note: { type: String, default: '' },// ghi chú đơn hàng
 });
 

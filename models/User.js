@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema({
   tongnap: { type: Number, default: 100 },
   capbac: { type: String, default: "thành viên" },
   token: { type: String }, // Không cần required, sẽ cập nhật sau khi tạo token
+  status: { type: String, enum: ['active', 'banned'], default: 'active' },
 }, { timestamps: true }); // Tự động tạo createdAt và updatedAt
 
 // Pre-save hook: mã hóa mật khẩu và cập nhật userId nếu chưa có

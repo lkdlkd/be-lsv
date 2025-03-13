@@ -24,6 +24,26 @@ exports.register = async (req, res) => {
     try {
         const { username, password } = req.body;
 
+        // Kiểm tra username và password không được ngắn hơn 6 ký tự
+        if (username.length < 6) {
+            return res.status(400).json({ error: "Tên người dùng phải có ít nhất 6 ký tự" });
+        }
+        if (password.length < 6) {
+            return res.status(400).json({ error: "Mật khẩu phải có ít nhất 6 ký tự" });
+        }
+
+        // Kiểm tra username không chứa ký tự đặc biệt (cho phép chữ cái, số và dấu gạch dưới)
+        const usernameRegex = /^[a-zA-Z0-9_]+$/;
+        if (!usernameRegex.test(username)) {
+            return res.status(400).json({ error: "Tên người dùng không được chứa ký tự đặc biệt" });
+        }
+
+        // Kiểm tra username phải chứa ít nhất một ký tự chữ
+        const containsLetterRegex = /[a-zA-Z]/;
+        if (!containsLetterRegex.test(username)) {
+            return res.status(400).json({ error: "Tên người dùng phải chứa ít nhất một ký tự chữ" });
+        }
+
         // Kiểm tra nếu người dùng đã tồn tại
         const existingUser = await User.findOne({ username });
         if (existingUser) {
@@ -44,7 +64,7 @@ exports.register = async (req, res) => {
 
         // Tạo token cho user mới (không hết hạn)
         const token = jwt.sign(
-            { username :user.username ,userId: user._id, role: user.role, capbac: user.capbac },
+            { username: user.username, userId: user._id, role: user.role  },
             "secretKey"
             // Không sử dụng expiresIn, token sẽ không hết hạn
         );
@@ -52,12 +72,13 @@ exports.register = async (req, res) => {
         user.token = token;
         await user.save();
 
+        const taoluc = new Date();
         const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
         const telegramChatId = process.env.TELEGRAM_CHAT_ID;
         if (telegramBotToken && telegramChatId) {
             const telegramMessage = `📌 *Có khách mới được tạo!*\n\n` +
                 `👤 *Khách hàng:* ${username}\n` +
-                `🔹 *tạo lúc* ${new Date()}\n`;
+                `🔹 *Tạo lúc:* ${taoluc.toLocaleString()}\n`;
             try {
                 await axios.post(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
                     chat_id: telegramChatId,
@@ -70,7 +91,7 @@ exports.register = async (req, res) => {
         } else {
             console.log('Thiếu thông tin cấu hình Telegram.');
         }
-        return res.status(201).json({ message: "Đăng ký thành công", userId: user._id, token });
+        return res.status(201).json({ message: "Đăng ký thành công" });
     } catch (error) {
         console.error("Đăng ký lỗi:", error);
         return res.status(500).json({ error: "Có lỗi xảy ra. Vui lòng thử lại." });

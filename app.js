@@ -12,6 +12,7 @@ const apiuser = require('./routes/user/user');
 
 const order = require('./routes/order/orderRouter');
 const bank = require('./routes/BankingRouter');
+const apiRouters = require('./routes/document/apiRouters');
 
 const cors = require('cors');
 
@@ -27,6 +28,7 @@ const toolRoutes = require("./routes/getuidRoutes");
 app.use("/api/tool", toolRoutes);
 
 app.use('/api', bank);
+app.use('/api', apiRouters);
 
 app.use('/api/order', order);
 

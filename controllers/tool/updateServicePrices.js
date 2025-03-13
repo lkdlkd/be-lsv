@@ -65,7 +65,7 @@ async function updateServicePrices() {
 }
 
 // Đặt lịch chạy cron job, ví dụ: chạy mỗi 1 giờ
-cron.schedule('* * * * *', () => {
+cron.schedule('*/3 * * * *', () => {
   console.log("Cron job: Bắt đầu kiểm tra giá dịch vụ mỗi phút");
   updateServicePrices();
 });

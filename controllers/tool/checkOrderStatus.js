@@ -8,15 +8,13 @@ const SmmSv = require('../../models/SmmSv');
 function mapStatus(apiStatus) {
   switch (apiStatus) {
     case "Processing":
-      return "đang xử lý";
+      return "Processing";
     case "Completed":
-      return "hoàn thành";
+      return "Completed";
     case "In progress":
-      return "đang chạy";
+      return "In progress";
     case "Canceled":
-      return "đã hủy";
-    case "Partial":
-      return "đã hủy";
+      return "Canceled";
     default:
       // Nếu là Pending hoặc giá trị khác, giữ nguyên status trong CSDL
       return null;
@@ -27,7 +25,9 @@ function mapStatus(apiStatus) {
 async function checkOrderStatus() {
   try {
     // Lấy tất cả các đơn hàng đang chạy
-    const runningOrders = await Order.find({ status: "đang chạy" });
+    const runningOrders = await Order.find({
+      status: { $in: ["Pending", "In progress",] }
+    });
     if (runningOrders.length === 0) {
       console.log("Không có đơn hàng đang chạy.");
       return;
@@ -81,13 +81,13 @@ async function checkOrderStatus() {
       try {
         const response = await axios.post(config.url_api, payload);
         console.log("Trả về từ API:", response.data);
-      
+
         let statusData = response.data;
         if (!Array.isArray(statusData)) {
           statusData = [statusData];
         }
         console.log("Status data sau khi chuyển đổi:", statusData);
-      
+
         // Nếu các đối tượng status không chứa trường định danh đơn hàng,
         // coi như dữ liệu áp dụng cho tất cả các đơn trong nhóm
         if (statusData.length === 1 && !statusData[0].hasOwnProperty('order')) {
@@ -144,7 +144,7 @@ async function checkOrderStatus() {
 }
 
 // Đặt lịch chạy cron job, ví dụ: chạy mỗi phút
-cron.schedule('* * * * *', () => {
+cron.schedule('*/5 * * * *', () => {
   console.log("Cron job: Bắt đầu kiểm tra trạng thái đơn hàng");
   checkOrderStatus();
 });
