@@ -39,7 +39,7 @@ exports.getServices = async (req, res) => {
         // Định dạng các trường cần hiển thị
         const formattedServices = services.map(service => ({
             service: service.Magoi,
-            name: service.name,
+            name: `${service.maychu} ${service.name}`, // Đảm bảo có khoảng trắng
             type: service.type,
             category: service.category,
             rate: service.rate,
