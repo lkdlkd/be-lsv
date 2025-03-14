@@ -236,69 +236,108 @@ exports.getUsers = async (req, res) => {
 // Cộng tiền vào số dư (chỉ admin mới có quyền)
 exports.addBalance = async (req, res) => {
     try {
-        // Xác thực token từ header
-        const authHeader = req.headers.authorization;
-        if (!authHeader) {
-            return res.status(401).json({ error: 'Không có token trong header' });
-        }
-        const token = authHeader.split(' ')[1];
-        if (!token) {
-            return res.status(401).json({ error: 'Token không hợp lệ' });
-        }
+      // Xác thực token từ header
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return res.status(401).json({ error: 'Không có token trong header' });
+      }
+      const token = authHeader.split(' ')[1];
+      if (!token) {
+        return res.status(401).json({ error: 'Token không hợp lệ' });
+      }
+  
+      // Giải mã token
+      let decoded;
+      try {
+        decoded = jwt.verify(token, "secretKey");
+      } catch (err) {
+        return res.status(401).json({ error: 'Token hết hạn hoặc không hợp lệ' });
+      }
+  
+      // Chỉ admin mới có quyền cộng tiền
+      if (decoded.role !== "admin") {
+        return res.status(403).json({ error: 'Chỉ admin mới có quyền cộng tiền vào số dư' });
+      }
+  
+      const { id } = req.params;
+      const { amount } = req.body;
+  
+      if (!amount || isNaN(amount) || amount <= 0) {
+        return res.status(400).json({ message: 'Số tiền không hợp lệ' });
+      }
+  
+      // Lấy ngày hiện tại
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1; // getMonth trả về 0-11
+      const currentYear = currentDate.getFullYear();
+  
+      // Tìm người dùng và cập nhật số dư
+      let user = await User.findById(id);
+      if (!user) {
+        return res.status(404).json({ message: 'Người dùng không tồn tại' });
+      }
+  
+      // Kiểm tra và reset tổng nạp tháng nếu cần (nếu tháng lưu khác với tháng hiện tại)
+      if (!user.lastDepositMonth ||
+          user.lastDepositMonth.month !== currentMonth ||
+          user.lastDepositMonth.year !== currentYear) {
+        user.tongnapthang = 0;
+      }
+  
+      // Cộng tiền vào số dư và tổng nạp chung
+      user.balance += amount;
+      user.tongnap += amount;
+      // Cộng tiền vào tổng nạp tháng
+      user.tongnapthang = (user.tongnapthang || 0) + amount;
+      // Cập nhật lại tháng nạp
+      user.lastDepositMonth = { month: currentMonth, year: currentYear };
+  
+      const updatedUser = await user.save();
+  
+      // Lưu lịch sử giao dịch
+      const currentBalance = updatedUser.balance;
+      const historyDataa = new HistoryUser({
+        username: updatedUser.username,
+        madon: "null",
+        hanhdong: 'Cộng tiền',
+        link: "",
+        tienhientai: currentBalance,
+        tongtien: amount,
+        tienconlai: currentBalance, // Sau khi cộng tiền
+        createdAt: new Date(),
+        mota: `Cộng thành công số tiền ${amount}`
+      });
+      console.log('History:', historyDataa);
+      await historyDataa.save();
+      const taoluc = new Date();
 
-        // Giải mã token
-        let decoded;
-        try {
-            decoded = jwt.verify(token, "secretKey");
-        } catch (err) {
-            return res.status(401).json({ error: 'Token hết hạn hoặc không hợp lệ' });
-        }
+      const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
+      const telegramChatId = process.env.TELEGRAM_CHAT_ID;
+      if (telegramBotToken && telegramChatId) {
+          const telegramMessage = `📌 *Cộng tiền!*\n\n` +
+              `👤 *Khách hàng:* ${updatedUser.username}\n` +
+              `👤 *Cộng tiền:*  Admin đã cộng thành công số tiền ${amount}.\n` +
 
-        // Chỉ admin mới có quyền cộng tiền
-        if (decoded.role !== "admin") {
-            return res.status(403).json({ error: 'Chỉ admin mới có quyền cộng tiền vào số dư' });
-        }
-
-        const { id } = req.params;
-        const { amount } = req.body;
-
-        if (!amount || isNaN(amount) || amount <= 0) {
-            return res.status(400).json({ message: 'Số tiền không hợp lệ' });
-        }
-
-        const updatedUser = await User.findByIdAndUpdate(
-            id,
-            { $inc: { balance: amount, tongnap: amount } },
-            { new: true }
-        );
-
-        if (!updatedUser) {
-            return res.status(404).json({ message: 'Người dùng không tồn tại' });
-        }
-
-        // Lưu lịch sử giao dịch
-        const currentBalance = updatedUser.balance;
-        const historyDataa = new HistoryUser({
-            username: updatedUser.username,
-            madon: "null",
-            hanhdong: 'Cộng tiền',
-            link: "",
-            tienhientai: currentBalance,
-            tongtien: amount,
-            tienconlai: currentBalance + amount,
-            createdAt: new Date(),
-            mota: 'Cộng thành công số tiền ' + amount,
-        });
-        console.log('History:', historyDataa);
-        await historyDataa.save();
-
-        res.status(200).json({ message: 'Cộng tiền thành công', user: updatedUser });
+              `🔹 *Tạo lúc:* ${taoluc.toLocaleString()}\n`;
+          try {
+              await axios.post(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+                  chat_id: telegramChatId,
+                  text: telegramMessage,
+              });
+              console.log('Thông báo Telegram đã được gửi.');
+          } catch (telegramError) {
+              console.error('Lỗi gửi thông báo Telegram:', telegramError.message);
+          }
+      } else {
+          console.log('Thiếu thông tin cấu hình Telegram.');
+      }
+      res.status(200).json({ message: 'Cộng tiền thành công', user: updatedUser });
     } catch (error) {
-        console.error("Add balance error:", error);
-        return res.status(500).json({ message: 'Lỗi server' });
+      console.error("Add balance error:", error);
+      return res.status(500).json({ message: 'Lỗi server' });
     }
-};
-
+  };
+  
 // Xóa người dùng (chỉ admin mới có quyền)
 exports.deleteUser = async (req, res) => {
     try {

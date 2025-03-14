@@ -7,9 +7,11 @@ const userSchema = new mongoose.Schema({
   name: { type: String },
   password: { type: String, required: true },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
-  balance: { type: Number, default: 100 },
-  tongnap: { type: Number, default: 100 },
-  capbac: { type: String, default: "thành viên" },
+  balance: { type: Number, default: 0 },
+  tongnap: { type: Number, default: 0 },
+  tongnapthang: { type: Number, default: 0 },
+
+  capbac: { type: String, default: "Thành viên" },
   token: { type: String }, // Không cần required, sẽ cập nhật sau khi tạo token
   status: { type: String, enum: ['active', 'banned'], default: 'active' },
 }, { timestamps: true }); // Tự động tạo createdAt và updatedAt
