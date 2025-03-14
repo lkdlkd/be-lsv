@@ -245,7 +245,7 @@ exports.AddOrder = async (req, res) => {
 /* Hàm lấy danh sách dịch vụ */
 exports.getOrderStatus = async (req, res) => {
     try {
-        const { key, orders } = req.body;
+        const { key, order } = req.body;
 
         // Kiểm tra xem token có được gửi không
         if (!key) {
