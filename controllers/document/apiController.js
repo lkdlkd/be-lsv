@@ -269,12 +269,12 @@ exports.getOrderStatus = async (req, res) => {
         }
 
         // Kiểm tra orders có được gửi hay không
-        if (!orders) {
+        if (!order) {
             return res.status(400).json({ success: false, message: "Danh sách đơn hàng không được bỏ trống" });
         }
 
         // Tách chuỗi orders thành mảng số (giả sử trường 'Madon' của đơn hàng là kiểu Number)
-        const orderNumbers = orders.split(',').map(num => Number(num.trim()));
+        const orderNumbers = order.split(',').map(num => Number(num.trim()));
 
         // Lấy các đơn hàng có Madon nằm trong mảng orderNumbers
         const orderDocs = await Order.find({ Madon: { $in: orderNumbers } });
