@@ -42,7 +42,7 @@ exports.getServices = async (req, res) => {
             name: `${service.maychu} ${service.name}`, // Đảm bảo có khoảng trắng
             type: service.type,
             category: service.category,
-            rate: service.rate,
+            rate: service.rate / 25,
             min: service.min,
             max: service.max,
             cancel: service.isActive,
