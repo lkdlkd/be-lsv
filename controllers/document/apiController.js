@@ -46,6 +46,7 @@ exports.getServices = async (req, res) => {
             min: service.min,
             max: service.max,
             cancel: service.isActive,
+            currency: "USD",
         }));
 
         return res.status(200).json(formattedServices);
