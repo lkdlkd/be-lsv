@@ -37,7 +37,7 @@ async function getOrdersByCategoryAndUser(req, res) {
 
   try {
     // Lấy danh sách đơn theo phân trang, lọc theo username từ token và category
-    const orders = await Order.find({ username: tokenUsername })
+    const orders = await Order.find({ username: tokenUsername },'-SvID -orderId' )
       .sort({ createdAt: -1 }) // Sắp xếp theo createdAt giảm dần (mới nhất lên đầu)
       .skip(skip)
       .limit(limit)
@@ -108,7 +108,7 @@ async function GetOrderscreach(req, res) {
   }
 
   try {
-    const orders = await Order.find(queryCondition)
+    const orders = await Order.find(queryCondition ,'-SvID -orderId')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)

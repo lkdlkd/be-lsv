@@ -5,7 +5,6 @@ const orderSchema = new mongoose.Schema({
   Madon: { type: String, required: true },//id đơn hàng
   orderId: { type: String, required: true },//id đơn hàng bên thứ 3 
   SvID: { type: String, required: true },//svsv đơn hàng bên thứ 3 
-
   namesv: { type: String, required: true }, // tên sv đã mua
   category: { type: String, required: true }, // loại dịch vụ đã mua
   comments: { type: String, required: false }, // cmt vụ đã mua
