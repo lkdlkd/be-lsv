@@ -121,6 +121,7 @@ async function addOrder(req, res) {
     const orderData = new Order({
       Madon: newMadon,
       username,
+      SvID : serviceFromDb.serviceId,
       orderId: purchaseResponse.data.order,
       namesv: serviceFromDb.name,
       category,

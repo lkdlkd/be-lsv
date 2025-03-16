@@ -40,7 +40,7 @@ async function checkOrderStatus() {
 
     for (const order of runningOrders) {
       // Tìm thông tin dịch vụ theo tên dịch vụ (namesv)
-      const service = await Service.findOne({ name: order.namesv });
+      const service = await Service.findOne({ serviceId: order.SvID });
       // console.log("Order namesv:", order.namesv);
       // console.log("Service:", service);
       if (!service) {
