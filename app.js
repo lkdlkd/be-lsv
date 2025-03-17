@@ -6,8 +6,10 @@ const apiRouter = require('./routes/server/Getdichvu');
 const smmRoutes = require('./routes/Smm/smmRoutes');
 require('./controllers/tool/updateServicePrices');
 require('./controllers/tool/checkOrderStatus');
+require('./controllers/RechargeCardController');
 
 const apiuser = require('./routes/user/user');
+const thecao = require('./routes/thecao/GetRouter');
 
 
 const order = require('./routes/order/orderRouter');
@@ -26,6 +28,7 @@ connectDB();
 // Sử dụng routes cho tool
 const toolRoutes = require("./routes/getuidRoutes");
 app.use("/api/tool", toolRoutes);
+app.use('/api', thecao);
 
 app.use('/api', bank);
 app.use('/api', apiRouters);
