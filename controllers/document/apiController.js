@@ -175,7 +175,7 @@ exports.AddOrder = async (req, res) => {
             Madon: newMadon,
             username,
             orderId: purchaseResponse.data.order,
-            namesv: serviceFromDb.name,
+            namesv: serviceFromDb.maychu +" "+ serviceFromDb.name,
             category: serviceFromDb.category,
             link,
             start: purchaseResponse.data.start_count || 0,
@@ -197,7 +197,7 @@ exports.AddOrder = async (req, res) => {
             tongtien: totalCost,
             tienconlai: newBalance,
             createdAt,
-            mota: 'Tăng ' + serviceFromDb.name + ' thành công cho uid ' + link,
+            mota: ' Tăng '+serviceFromDb.maychu +" "+ serviceFromDb.name + ' thành công cho uid ' + link,
         });
 
         console.log('Order:', orderData);

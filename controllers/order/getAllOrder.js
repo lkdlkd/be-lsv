@@ -26,30 +26,39 @@ const verifyAdmin = async (req, res) => {
   }
 };
 
-// Lấy trạng thái đơn hàng 
 async function getAllOrder(req, res) {
   // Kiểm tra token và quyền admin
   const decoded = await verifyAdmin(req, res);
   if (!decoded) return;
-  const { category } = req.query;
+
+  // Lấy query params: category, search, page, limit
+  const { category, search } = req.query;
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10; // Số đơn mỗi trang
+  const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  if (!category) {
-    return res.status(400).json({ message: 'Thiếu thông tin userId hoặc category' });
+  // Thiết lập filter
+  let filter = {};
+  if (category) {
+    filter.category = category;
+  }
+
+  if (search) {
+    filter.$or = [
+      { Madon: { $regex: search, $options: "i" } },
+      { username: { $regex: search, $options: "i" } },
+      { link: { $regex: search, $options: "i" } },
+    ];
   }
 
   try {
-    // Lấy danh sách đơn theo phân trang và sắp xếp đơn mới nhất lên đầu
-    const orders = await Order.find({ category })
-      .sort({ createdAt: -1 }) // Sắp xếp theo createdAt giảm dần (mới nhất lên đầu)
+    const orders = await Order.find(filter)
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .populate('category');
 
-    // Đếm tổng số đơn để tính số trang
-    const totalOrders = await Order.countDocuments({ category });
+    const totalOrders = await Order.countDocuments(filter);
 
     if (orders.length === 0) {
       return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
@@ -66,15 +75,13 @@ async function getAllOrder(req, res) {
   }
 }
 
-// Hàm xóa đơn hàng theo _id (chỉ admin)
+// Hàm xóa đơn hàng (chỉ admin)
 async function deleteOrder(req, res) {
-  // Kiểm tra token và quyền admin
   const decoded = await verifyAdmin(req, res);
   if (!decoded) return;
 
-  const { orderId } = req.params; // Lấy _id của đơn hàng cần xóa từ URL
+  const { orderId } = req.params;
   try {
-    // Tìm và xóa đơn hàng theo _id
     const order = await Order.findOneAndDelete({ _id: orderId });
     if (!order) {
       return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });

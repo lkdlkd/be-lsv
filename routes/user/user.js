@@ -7,10 +7,13 @@ const router = express.Router();
 
 router.post("/login",userControlll.login );
 router.post("/register",userControlll.register );
+// get thong tin ng dung
 router.get('/:userId',authenticate, userControlll.getBalance);
 
 router.get('/',authenticate, userControlll.getUsers);
 router.put('/add/:id/balance',authenticate, userControlll.addBalance);
+router.post('/:id/deduct-balance',authenticate, userControlll.deductBalance);
+
 router.put('/changePassword/:id',authenticate, userControlll.changePassword);
 
 router.put('/update/:id',authenticate, userControlll.updateUser);

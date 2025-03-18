@@ -123,7 +123,7 @@ async function addOrder(req, res) {
       username,
       SvID : serviceFromDb.serviceId,
       orderId: purchaseResponse.data.order,
-      namesv: serviceFromDb.name,
+      namesv: serviceFromDb.maychu +" "+ serviceFromDb.name,
       category,
       link,
       start: purchaseResponse.data.start_count || 0,
@@ -145,7 +145,7 @@ async function addOrder(req, res) {
       tongtien: totalCost,
       tienconlai: newBalance,
       createdAt,
-      mota: ' Tăng ' + serviceFromDb.name + ' thành công cho uid ' + link,
+      mota: ' Tăng '+serviceFromDb.maychu +" "+ serviceFromDb.name + ' thành công cho uid ' + link,
     });
 
     console.log('Order:', orderData);

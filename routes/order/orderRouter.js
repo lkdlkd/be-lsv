@@ -9,7 +9,9 @@ const { authenticate } = require('../../controllers/user/authenticate'); // Đư
 
 router.post('/add',authenticate, addOrder);
 router.get('/orders',authenticate, getOrdersByCategoryAndUser);
+
 router.get('/getOrder',authenticate, getAllOrder);
+
 router.delete('/:orderId',authenticate, deleteOrder);
 router.get('/screach',authenticate, GetOrderscreach);
 
