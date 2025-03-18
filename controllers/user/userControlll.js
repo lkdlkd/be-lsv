@@ -283,22 +283,17 @@ exports.addBalance = async (req, res) => {
             return res.status(404).json({ message: 'Người dùng không tồn tại' });
         }
 
-        // Kiểm tra và reset tổng nạp tháng nếu cần (nếu tháng lưu khác với tháng hiện tại)
-        if (!user.lastDepositMonth ||
-            user.lastDepositMonth.month !== currentMonth ||
-            user.lastDepositMonth.year !== currentYear) {
-            user.tongnapthang = 0;
-        }
+        const update = {
+            $inc: {
+                balance: amount,
+                tongnap: amount,
+                tongnapthang: amount
+            },
+            $set: { lastDepositMonth: { month: currentMonth, year: currentYear } }
+        };
 
-        // Cộng tiền vào số dư và tổng nạp chung
-        user.balance += amount;
-        user.tongnap += amount;
-        // Cộng tiền vào tổng nạp tháng
-        user.tongnapthang = (user.tongnapthang || 0) + amount;
-        // Cập nhật lại tháng nạp
-        user.lastDepositMonth = { month: currentMonth, year: currentYear };
+        const updatedUser = await User.findByIdAndUpdate(id, update, { new: true });
 
-        const updatedUser = await user.save();
 
         // Lưu lịch sử giao dịch
         const currentBalance = updatedUser.balance;
