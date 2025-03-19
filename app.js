@@ -15,6 +15,7 @@ const thecao = require('./routes/thecao/GetRouter');
 const order = require('./routes/order/orderRouter');
 const bank = require('./routes/BankingRouter');
 const apiRouters = require('./routes/document/apiRouters');
+const statisticsRoutes = require("./routes//website/thongkeRoute");
 
 const cors = require('cors');
 
@@ -24,6 +25,9 @@ app.use(cors());
 
 // Kết nối MongoDB
 connectDB();
+
+// thống kê
+app.use("/api", statisticsRoutes);
 
 // Sử dụng routes cho tool
 const toolRoutes = require("./routes/getuidRoutes");

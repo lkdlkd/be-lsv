@@ -2,6 +2,8 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const axios = require("axios");
 const Transaction = require("../models/TransactionSchema");
+const User = require("../models/User");
+
 const FormData = require("form-data");
 
 // Controller tạo transaction
@@ -21,6 +23,18 @@ exports.createTransaction = async (req, res) => {
       decoded = jwt.verify(token, "secretKey");
     } catch (err) {
       return res.status(401).json({ error: "Token hết hạn hoặc không hợp lệ" });
+    }
+    // Lấy user từ DB dựa trên userId từ decoded token
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      res.status(404).json({ error: 'Người dùng không tồn tại' });
+      return null;
+    }
+
+    // So sánh token trong header với token đã lưu của user
+    if (user.token !== token) {
+      res.status(401).json({ error: 'Token không hợp lệ1' });
+      return null;
     }
 
     const { card_type, card_value, card_seri, card_code } = req.body;

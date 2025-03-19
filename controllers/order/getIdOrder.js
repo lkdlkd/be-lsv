@@ -1,4 +1,5 @@
 const Order = require('../../models/Order');
+const User = require('../../models/User');
 
 const jwt = require("jsonwebtoken");
 
@@ -21,6 +22,18 @@ async function getOrdersByCategoryAndUser(req, res) {
   } catch (err) {
     return res.status(401).json({ message: 'Token hết hạn hoặc không hợp lệ' });
   }
+  // Lấy user từ DB dựa trên userId từ decoded token
+  const user = await User.findById(decoded.userId);
+  if (!user) {
+    res.status(404).json({ error: 'Người dùng không tồn tại' });
+    return null;
+  }
+
+  // So sánh token trong header với token đã lưu của user
+  if (user.token !== token) {
+    res.status(401).json({ error: 'Token không hợp lệ' });
+    return null;
+  }
 
   // Sử dụng username từ token, bỏ qua giá trị truyền qua query
   const tokenUsername = decoded.username;
@@ -37,17 +50,17 @@ async function getOrdersByCategoryAndUser(req, res) {
 
   try {
     // Lấy danh sách đơn theo phân trang, lọc theo username từ token và category
-    const orders = await Order.find({ username: tokenUsername },'-SvID -orderId' )
+    const orders = await Order.find({ username: tokenUsername }, '-SvID -orderId')
       .sort({ createdAt: -1 }) // Sắp xếp theo createdAt giảm dần (mới nhất lên đầu)
       .skip(skip)
       .limit(limit)
       .populate('username');
 
-      // .populate('username', 'category');
+    // .populate('username', 'category');
 
     // Đếm tổng số đơn để tính số trang
     // const totalOrders = await Order.countDocuments({ username: tokenUsername, category });
-    const totalOrders = await Order.countDocuments({ username: tokenUsername});
+    const totalOrders = await Order.countDocuments({ username: tokenUsername });
 
     if (orders.length === 0) {
       return res.status(404).json({ message: 'bạn chưa có đơn hàng nào' });
@@ -82,7 +95,18 @@ async function GetOrderscreach(req, res) {
   } catch (err) {
     return res.status(401).json({ message: 'Token hết hạn hoặc không hợp lệ' });
   }
+  // Lấy user từ DB dựa trên userId từ decoded token
+  const user = await User.findById(decoded.userId);
+  if (!user) {
+    res.status(404).json({ error: 'Người dùng không tồn tại' });
+    return null;
+  }
 
+  // So sánh token trong header với token đã lưu của user
+  if (user.token !== token) {
+    res.status(401).json({ error: 'Token không hợp lệ' });
+    return null;
+  }
   // Sử dụng username từ token
   const tokenUsername = decoded.username;
 
@@ -108,7 +132,7 @@ async function GetOrderscreach(req, res) {
   }
 
   try {
-    const orders = await Order.find(queryCondition ,'-SvID -orderId')
+    const orders = await Order.find(queryCondition, '-SvID -orderId')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)

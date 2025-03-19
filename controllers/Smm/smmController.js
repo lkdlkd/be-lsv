@@ -1,5 +1,6 @@
 const SmmSv = require("../../models/SmmSv");
 const jwt = require("jsonwebtoken");
+const User = require('../../models/User');
 
 // Middleware kiểm tra token và quyền admin
 const verifyAdmin = async (req, res) => {
@@ -15,6 +16,17 @@ const verifyAdmin = async (req, res) => {
     }
     try {
         const decoded = jwt.verify(token, "secretKey");
+        const user = await User.findById(decoded.userId);
+        if (!user) {
+            res.status(404).json({ error: 'Người dùng không tồn tại' });
+            return null;
+        }
+
+        // So sánh token trong header với token đã lưu của user
+        if (user.token !== token) {
+            res.status(401).json({ error: 'Token không hợp lệ' });
+            return null;
+        }
         if (decoded.role !== "admin") {
             res.status(403).json({ error: 'Chỉ admin mới có quyền sử dụng chức năng này' });
             return null;

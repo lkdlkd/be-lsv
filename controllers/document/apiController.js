@@ -25,8 +25,20 @@ exports.getServices = async (req, res) => {
             return res.status(401).json({ success: false, message: "Token không hợp lệ" });
         }
 
-        // Kiểm tra trạng thái người dùng trong CSDL (ví dụ: 'active')
+        // Lấy user từ DB dựa trên userId từ decoded token
         const user = await User.findById(decoded.userId);
+        if (!user) {
+            res.status(404).json({ error: 'Người dùng không tồn tại' });
+            return null;
+        }
+
+        // So sánh token trong header với token đã lưu của user
+        if (user.token !== token) {
+            res.status(401).json({ error: 'Token không hợp lệ1' });
+            return null;
+        }
+
+        // Kiểm tra trạng thái người dùng trong CSDL (ví dụ: 'active')
         if (!user) {
             return res.status(404).json({ success: false, message: "Không tìm thấy người dùng" });
         }
@@ -78,11 +90,19 @@ exports.AddOrder = async (req, res) => {
         return res.status(401).json({ message: 'Token hết hạn hoặc không hợp lệ' });
     }
 
-    // So sánh username trong token và trong body
-    // const tokenUsername = decoded.username;
-    // if (username !== tokenUsername) {
-    //     return res.status(403).json({ message: 'Bạn không có quyền thực hiện hành động này' });
-    // }
+
+    // Lấy user từ DB dựa trên userId từ decoded token
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+        res.status(404).json({ error: 'Người dùng không tồn tại' });
+        return null;
+    }
+
+    // So sánh token trong header với token đã lưu của user
+    if (user.token !== token) {
+        res.status(401).json({ error: 'Token không hợp lệ1' });
+        return null;
+    }
     const username = decoded.username
     const qty = Number(quantity);
     const formattedComments = comments ? comments.replace(/\r?\n/g, "\r\n") : "";
@@ -175,7 +195,7 @@ exports.AddOrder = async (req, res) => {
             Madon: newMadon,
             username,
             orderId: purchaseResponse.data.order,
-            namesv: serviceFromDb.maychu +" "+ serviceFromDb.name,
+            namesv: serviceFromDb.maychu + " " + serviceFromDb.name,
             category: serviceFromDb.category,
             link,
             start: purchaseResponse.data.start_count || 0,
@@ -197,7 +217,7 @@ exports.AddOrder = async (req, res) => {
             tongtien: totalCost,
             tienconlai: newBalance,
             createdAt,
-            mota: ' Tăng '+serviceFromDb.maychu +" "+ serviceFromDb.name + ' thành công cho uid ' + link,
+            mota: ' Tăng ' + serviceFromDb.maychu + " " + serviceFromDb.name + ' thành công cho uid ' + link,
         });
 
         console.log('Order:', orderData);
@@ -260,8 +280,19 @@ exports.getOrderStatus = async (req, res) => {
             return res.status(401).json({ success: false, message: "Token không hợp lệ" });
         }
 
-        // Kiểm tra trạng thái người dùng trong CSDL (ví dụ: 'active')
+        // Lấy user từ DB dựa trên userId từ decoded token
         const user = await User.findById(decoded.userId);
+        if (!user) {
+            res.status(404).json({ error: 'Người dùng không tồn tại' });
+            return null;
+        }
+
+        // So sánh token trong header với token đã lưu của user
+        if (user.token !== token) {
+            res.status(401).json({ error: 'Token không hợp lệ1' });
+            return null;
+        }
+        // Kiểm tra trạng thái người dùng trong CSDL (ví dụ: 'active')
         if (!user) {
             return res.status(404).json({ success: false, message: "Không tìm thấy người dùng" });
         }
@@ -324,8 +355,19 @@ exports.getme = async (req, res) => {
             return res.status(401).json({ success: false, message: "Token không hợp lệ" });
         }
 
-        // Kiểm tra trạng thái người dùng trong CSDL (ví dụ: 'active')
+        // Lấy user từ DB dựa trên userId từ decoded token
         const user = await User.findById(decoded.userId);
+        if (!user) {
+            res.status(404).json({ error: 'Người dùng không tồn tại' });
+            return null;
+        }
+
+        // So sánh token trong header với token đã lưu của user
+        if (user.token !== token) {
+            res.status(401).json({ error: 'Token không hợp lệ1' });
+            return null;
+        }
+        // Kiểm tra trạng thái người dùng trong CSDL (ví dụ: 'active')
         if (!user) {
             return res.status(404).json({ success: false, message: "Không tìm thấy người dùng" });
         }

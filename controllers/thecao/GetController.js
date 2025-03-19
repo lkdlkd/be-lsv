@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const Transaction = require("../../models/TransactionSchema");
+const User = require("../../models/User");
 
 exports.getThecao = async (req, res) => {
   try {
@@ -17,10 +18,21 @@ exports.getThecao = async (req, res) => {
     let decoded;
     try {
       decoded = jwt.verify(token, "secretKey");
+
     } catch (err) {
       return res.status(401).json({ error: "Token hết hạn hoặc không hợp lệ" });
     }
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      res.status(404).json({ error: 'Người dùng không tồn tại' });
+      return null;
+    }
 
+    // So sánh token trong header với token đã lưu của user
+    if (user.token !== token) {
+      res.status(401).json({ error: 'Token không hợp lệ' });
+      return null;
+    }
     // Lấy username từ token
     const username = decoded.username;
 

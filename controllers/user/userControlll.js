@@ -112,7 +112,6 @@ exports.getBalance = async (req, res) => {
         if (!token) {
             return res.status(401).json({ error: 'Token không hợp lệ' });
         }
-
         // Giải mã token
         let decoded;
         try {
@@ -127,6 +126,11 @@ exports.getBalance = async (req, res) => {
             return res.status(404).json({ error: 'Người dùng không tồn tại' });
         }
 
+        // So sánh token trong header với token đã lưu của user
+        if (user.token !== token) {
+            res.status(401).json({ error: 'Token không hợp lệ' });
+            return null;
+        }
         // Kiểm tra xem token có phải của user đang yêu cầu không
         if (decoded.userId !== user._id.toString()) {
             return res.status(403).json({ error: 'Bạn không có quyền xem thông tin người dùng này' });
@@ -161,7 +165,17 @@ exports.updateUser = async (req, res) => {
         }
 
         const { id } = req.params;
+        const user = await User.findById(decoded.userId);
+        if (!user) {
+            res.status(404).json({ error: 'Người dùng không tồn tại' });
+            return null;
+        }
 
+        // So sánh token trong header với token đã lưu của user
+        if (user.token !== token) {
+            res.status(401).json({ error: 'Token không hợp lệ' });
+            return null;
+        }
         // Cho phép cập nhật nếu là admin hoặc chính chủ tài khoản (so sánh decoded.userId với id)
         if (decoded.role !== "admin" && decoded.userId !== id) {
             return res.status(403).json({ error: 'Bạn không có quyền sửa thông tin người dùng này' });
@@ -198,7 +212,17 @@ exports.getUsers = async (req, res) => {
         } catch (err) {
             return res.status(401).json({ error: 'Token hết hạn hoặc không hợp lệ' });
         }
+        const user = await User.findById(decoded.userId);
+        if (!user) {
+            res.status(404).json({ error: 'Người dùng không tồn tại' });
+            return null;
+        }
 
+        // So sánh token trong header với token đã lưu của user
+        if (user.token !== token) {
+            res.status(401).json({ error: 'Token không hợp lệ' });
+            return null;
+        }
         // Kiểm tra vai trò admin
         if (decoded.role !== "admin") {
             return res.status(403).json({ error: 'Chỉ admin mới có quyền xem danh sách người dùng' });
@@ -264,7 +288,17 @@ exports.addBalance = async (req, res) => {
         if (decoded.role !== "admin") {
             return res.status(403).json({ error: 'Chỉ admin mới có quyền cộng tiền vào số dư' });
         }
+        const userr = await User.findById(decoded.userId);
+        if (!userr) {
+            res.status(404).json({ error: 'Người dùng không tồn tại' });
+            return null;
+        }
 
+        // So sánh token trong header với token đã lưu của user
+        if (userr.token !== token) {
+            res.status(401).json({ error: 'Token không hợp lệ' });
+            return null;
+        }
         const { id } = req.params;
         const { amount } = req.body;
 
@@ -358,6 +392,17 @@ exports.deductBalance = async (req, res) => {
             return res.status(401).json({ error: 'Token hết hạn hoặc không hợp lệ' });
         }
 
+        const userr = await User.findById(decoded.userId);
+        if (!userr) {
+            res.status(404).json({ error: 'Người dùng không tồn tại' });
+            return null;
+        }
+
+        // So sánh token trong header với token đã lưu của user
+        if (userr.token !== token) {
+            res.status(401).json({ error: 'Token không hợp lệ' });
+            return null;
+        }
         // Chỉ admin mới có quyền trừ tiền
         if (decoded.role !== "admin") {
             return res.status(403).json({ error: 'Chỉ admin mới có quyền trừ tiền từ số dư' });
@@ -452,7 +497,17 @@ exports.deleteUser = async (req, res) => {
         } catch (err) {
             return res.status(401).json({ error: 'Token hết hạn hoặc không hợp lệ' });
         }
+        const userr = await User.findById(decoded.userId);
+        if (!userr) {
+            res.status(404).json({ error: 'Người dùng không tồn tại' });
+            return null;
+        }
 
+        // So sánh token trong header với token đã lưu của user
+        if (userr.token !== token) {
+            res.status(401).json({ error: 'Token không hợp lệ' });
+            return null;
+        }
         // Chỉ admin mới có quyền xóa user
         if (decoded.role !== "admin") {
             return res.status(403).json({ error: 'Chỉ admin mới có quyền xóa người dùng' });
@@ -489,7 +544,17 @@ exports.changePassword = async (req, res) => {
         } catch (err) {
             return res.status(401).json({ error: 'Token hết hạn hoặc không hợp lệ' });
         }
+        const userr = await User.findById(decoded.userId);
+        if (!userr) {
+            res.status(404).json({ error: 'Người dùng không tồn tại' });
+            return null;
+        }
 
+        // So sánh token trong header với token đã lưu của user
+        if (userr.token !== token) {
+            res.status(401).json({ error: 'Token không hợp lệ' });
+            return null;
+        }
         // Lấy id của user cần đổi mật khẩu
         const { id } = req.params;
         const { oldPassword, newPassword } = req.body;
@@ -522,13 +587,15 @@ exports.changePassword = async (req, res) => {
 
         // Cập nhật mật khẩu mới
         user.password = newPassword;
-        await user.save();
 
         // Tạo token cho user mới (không hết hạn)
         const newToken = jwt.sign(
             { username: user.username, userId: user._id, role: user.role },
             "secretKey"
         );
+
+        user.token = newToken; // Cập nhật token mới vào CSDL
+        await user.save();
 
         return res.status(200).json({
             message: 'Đổi mật khẩu thành công',

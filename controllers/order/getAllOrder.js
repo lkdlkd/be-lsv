@@ -1,29 +1,47 @@
 const Order = require('../../models/Order');
 const jwt = require("jsonwebtoken");
+const User = require("../../models/User");
 
-// Hàm kiểm tra token và quyền admin
 const verifyAdmin = async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    res.status(401).json({ success: false, message: 'Không có token trong header' });
-    return null;
-  }
-  const token = authHeader.split(' ')[1];
-  if (!token) {
-    res.status(401).json({ success: false, message: 'Token không hợp lệ' });
-    return null;
-  }
-  try {
-    const decoded = jwt.verify(token, "secretKey");
-    if (decoded.role !== "admin") {
-      res.status(403).json({ success: false, message: 'Chỉ admin mới có quyền thực hiện' });
-      return null;
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        res.status(401).json({ error: 'Không có token trong header' });
+        return null;
     }
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+        res.status(401).json({ error: 'Token không hợp lệ' });
+        return null;
+    }
+
+    let decoded;
+    try {
+        decoded = jwt.verify(token, "secretKey");
+    } catch (err) {
+        res.status(401).json({ error: 'Token hết hạn hoặc không hợp lệ' });
+        return null;
+    }
+
+    // Lấy user từ DB dựa trên userId từ decoded token
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+        res.status(404).json({ error: 'Người dùng không tồn tại' });
+        return null;
+    }
+
+    // So sánh token trong header với token đã lưu của user
+    if (user.token !== token) {
+        res.status(401).json({ error: 'Token không hợp lệ' });
+        return null;
+    }
+
+    // Kiểm tra quyền admin
+    if (decoded.role !== "admin") {
+        res.status(403).json({ error: 'Chỉ admin mới có quyền sử dụng chức năng này' });
+        return null;
+    }
+
     return decoded;
-  } catch (err) {
-    res.status(401).json({ success: false, message: 'Token hết hạn hoặc không hợp lệ' });
-    return null;
-  }
 };
 
 async function getAllOrder(req, res) {

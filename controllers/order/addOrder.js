@@ -23,7 +23,19 @@ async function addOrder(req, res) {
   } catch (err) {
     return res.status(401).json({ message: 'Token hết hạn hoặc không hợp lệ' });
   }
-  
+
+  // Lấy user từ DB dựa trên userId từ decoded token
+  const user = await User.findById(decoded.userId);
+  if (!user) {
+    res.status(404).json({ error: 'Người dùng không tồn tại' });
+    return null;
+  }
+
+  // So sánh token trong header với token đã lưu của user
+  if (user.token !== token) {
+    res.status(401).json({ error: 'Token không hợp lệ1' });
+    return null;
+  }
   // So sánh username trong token và trong body
   // const tokenUsername = decoded.username;
   const { username, link, category, quantity, magoi, note, comments } = req.body;
@@ -121,9 +133,9 @@ async function addOrder(req, res) {
     const orderData = new Order({
       Madon: newMadon,
       username,
-      SvID : serviceFromDb.serviceId,
+      SvID: serviceFromDb.serviceId,
       orderId: purchaseResponse.data.order,
-      namesv: serviceFromDb.maychu +" "+ serviceFromDb.name,
+      namesv: serviceFromDb.maychu + " " + serviceFromDb.name,
       category,
       link,
       start: purchaseResponse.data.start_count || 0,
@@ -145,7 +157,7 @@ async function addOrder(req, res) {
       tongtien: totalCost,
       tienconlai: newBalance,
       createdAt,
-      mota: ' Tăng '+serviceFromDb.maychu +" "+ serviceFromDb.name + ' thành công cho uid ' + link,
+      mota: ' Tăng ' + serviceFromDb.maychu + " " + serviceFromDb.name + ' thành công cho uid ' + link,
     });
 
     console.log('Order:', orderData);
