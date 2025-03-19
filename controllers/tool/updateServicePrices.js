@@ -25,12 +25,12 @@ async function updateServicePrices() {
           key: smmSvConfig.api_token,
           action: 'services'
         });
-        
+
         if (!apiResponse.data || !Array.isArray(apiResponse.data)) {
           console.warn(`Dữ liệu API không hợp lệ cho dịch vụ ${serviceItem.name}`);
           continue;
         }
-        
+
         // Tìm dịch vụ có serviceId tương ứng trong kết quả API (ép kiểu về Number nếu cần)
         const apiService = apiResponse.data.find(
           s => Number(s.service) === Number(serviceItem.serviceId)
@@ -39,19 +39,41 @@ async function updateServicePrices() {
           console.warn(`Không tìm thấy dịch vụ ${serviceItem.serviceId} trong API cho ${serviceItem.name}`);
           continue;
         }
-        
+
         // Lấy giá từ API và so sánh với giá trong CSDL (làm tròn 2 số thập phân)
-        const apiRate = parseFloat(apiService.rate*25 .toFixed(2));
+        const apiRate = parseFloat(apiService.rate * 25 .toFixed(2));
         const dbRate = parseFloat(serviceItem.rate.toFixed(2));
-        
+
         console.log(`Dịch vụ ${serviceItem.name} - Giá DB: ${dbRate}, Giá API: ${apiRate}`);
-        
+
         // Nếu giá trong CSDL thấp hơn giá API thì cập nhật
         if (dbRate < apiRate) {
           const newRate = parseFloat((apiRate * 1.1).toFixed(2)); // cập nhật với 10% tăng thêm
+           const giacu = serviceItem.rate 
           serviceItem.rate = newRate;
           await serviceItem.save();
           console.log(`Đã cập nhật giá của ${serviceItem.name} thành ${newRate}`);
+
+          const taoluc = new Date();
+          const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
+          const telegramChatId = process.env.TELEGRAM_CHAT_ID;
+          if (telegramBotToken && telegramChatId) {
+            const telegramMessage = `📌 *Cập nhật giá!*\n\n` +
+              `👤 *message:* Đã cập nhật giá của ${serviceItem.name} thành ${newRate} giá cũ ${giacu}.\n` +
+              `👤 *Site:* ${smmSvConfig.name} .\n` +
+              `🔹 *Tạo lúc:* ${taoluc.toLocaleString()}\n`;
+            try {
+              await axios.post(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+                chat_id: telegramChatId,
+                text: telegramMessage,
+              });
+              console.log('Thông báo Telegram đã được gửi.');
+            } catch (telegramError) {
+              console.error('Lỗi gửi thông báo Telegram:', telegramError.message);
+            }
+          } else {
+            console.log('Thiếu thông tin cấu hình Telegram.');
+          }
         } else {
           console.log(`Giá của ${serviceItem.name} đã bằng hoặc cao hơn giá API, bỏ qua cập nhật.`);
         }
@@ -64,8 +86,7 @@ async function updateServicePrices() {
   }
 }
 
-// Đặt lịch chạy cron job, ví dụ: chạy mỗi 1 giờ
-cron.schedule('*/3 * * * *', () => {
-  console.log("Cron job: Bắt đầu kiểm tra giá dịch vụ mỗi phút");
+setInterval(() => {
+  console.log("Cron job: Kiểm tra giá dịch vụ mỗi 30 giây");
   updateServicePrices();
-});
+}, 30000); // 30,000 milliseconds = 30 seconds

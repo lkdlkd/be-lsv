@@ -192,8 +192,11 @@ exports.rechargeCardStatus = async () => {
     }
 };
 
-// Tạo cron job chạy mỗi 1 phút
-cron.schedule("*/1 * * * *", async () => {
+setInterval(async () => {
     console.log("⏳ Chạy cron job kiểm tra thẻ cào...");
-    await exports.rechargeCardStatus();
-});
+    try {
+        await exports.rechargeCardStatus();
+    } catch (error) {
+        console.error("Lỗi khi chạy rechargeCardStatus:", error);
+    }
+}, 30000); // 30,000 milliseconds = 30 seconds
