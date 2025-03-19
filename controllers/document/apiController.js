@@ -10,8 +10,6 @@ const SmmSv = require("../../models/SmmSv");
 exports.getServices = async (req, res) => {
     try {
         const { key } = req.body;
-
-
         // Kiểm tra xem token có được gửi không
         if (!key) {
             return res.status(400).json({ success: false, message: "Token không được bỏ trống" });
@@ -33,7 +31,7 @@ exports.getServices = async (req, res) => {
         }
 
         // So sánh token trong header với token đã lưu của user
-        if (user.token !== token) {
+        if (user.token !== key) {
             res.status(401).json({ error: 'Token không hợp lệ1' });
             return null;
         }
@@ -99,7 +97,7 @@ exports.AddOrder = async (req, res) => {
     }
 
     // So sánh token trong header với token đã lưu của user
-    if (user.token !== token) {
+    if (user.token !== key) {
         res.status(401).json({ error: 'Token không hợp lệ1' });
         return null;
     }
@@ -288,7 +286,7 @@ exports.getOrderStatus = async (req, res) => {
         }
 
         // So sánh token trong header với token đã lưu của user
-        if (user.token !== token) {
+        if (user.token !== key) {
             res.status(401).json({ error: 'Token không hợp lệ1' });
             return null;
         }
@@ -363,7 +361,7 @@ exports.getme = async (req, res) => {
         }
 
         // So sánh token trong header với token đã lưu của user
-        if (user.token !== token) {
+        if (user.token !== key) {
             res.status(401).json({ error: 'Token không hợp lệ1' });
             return null;
         }
