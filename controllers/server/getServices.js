@@ -56,31 +56,63 @@ exports.addService = async (req, res) => {
   }
 };
 
+
+// Lấy danh sách dịch vụ (mở)
 // Lấy danh sách dịch vụ (mở)
 exports.getServices = async (req, res) => {
   try {
-    const services = await Service.find();
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ success: false, message: 'Không có token trong header' });
+    }
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'Token không hợp lệ' });
+    }
+    const decoded = jwt.verify(token, "secretKey");
 
-    // Giả sử bạn muốn hiển thị các trường: description, Magoi, id, maychu, Linkdv, name, rate, min, max, type, category, iscomment, trangthai
-    const formattedServices = services.map(service => ({
-      description: service.description,
-      Magoi: service.Magoi,
-      id: service.id,
-      maychu: service.maychu,
-      Linkdv: service.Linkdv,
-      name: service.name,
-      rate: service.rate,
-      min: service.min,
-      max: service.max,
-      type: service.type,
-      category: service.category,
-      iscomment: service.comment,
-      trangthai: service.isActive,
-    }));
+    // Lấy user từ DB dựa trên userId từ decoded token
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Người dùng không tồn tại' });
+    }
 
-    res.status(200).json({ success: true, data: formattedServices });
+    // So sánh token trong header với token đã lưu của user
+    if (user.token !== token) {
+      return res.status(401).json({ success: false, message: 'Token không hợp lệ' });
+    }
+
+    // Nếu user là admin, hiển thị tất cả dịch vụ. Nếu không, chỉ hiển thị những dịch vụ đang hoạt động.
+    let services;
+    if (user.role === "admin") {
+      services = await Service.find();
+      return res.status(200).json({ success: true, data: services });
+
+    } else {
+      const services = await Service.find();
+
+
+        // Định dạng dữ liệu trả về
+        const formattedServices = services.map(service => ({
+          description: service.description,
+          Magoi: service.Magoi,
+          id: service.id,
+          maychu: service.maychu,
+          Linkdv: service.Linkdv,
+          name: service.name,
+          rate: service.rate,
+          min: service.min,
+          max: service.max,
+          type: service.type,
+          category: service.category,
+          iscomment: service.comment,
+          trangthai: service.isActive,
+        }));
+    
+        return res.status(200).json({ success: true, data: formattedServices });
+    }
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Lỗi khi lấy danh sách dịch vụ',
       error: error.message
