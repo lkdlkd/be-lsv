@@ -44,11 +44,17 @@ exports.createTransaction = async (req, res) => {
 
     // Lấy request_id tăng dần
     const lastTransaction = await Transaction.findOne().sort({ request_id: -1 });
+
+
     let request_id = 11; // Mặc định request_id là 1 nếu không có giao dịch trước đó
     if (lastTransaction && typeof lastTransaction.request_id === 'number') {
       request_id = lastTransaction.request_id + 1;
     }
-    console.log("lastTransaction", lastTransaction)
+
+    let trans_id = 1; // Mặc định request_id là 1 nếu không có giao dịch trước đó
+    if (lastTransaction && typeof lastTransaction.tran_id === 'number') {
+      trans_id = lastTransaction.tran_id + 1;
+    }
     const partner_id = process.env.PARTNER_ID || "your_partner_id";
     const partner_key = process.env.PARTNER_KEY || "your_partner_key";
 
@@ -75,10 +81,11 @@ exports.createTransaction = async (req, res) => {
         ...formdata.getHeaders(),
       },
     });
-    console.log("Response:", response.data);
     const percent_card = Number(process.env.PERCENT_CARD);
+    if (response.data.status === 3) {
+      return res.status(500).json({ error: "Thẻ lỗi, kiểm tra lại thẻ" });
 
-    console.log("Response từ API đối tác:", response.data.trans_id);
+    }
     const chietkhau = card_value - (card_value * percent_card / 100);
 
     // Tạo bản ghi Transaction mới với request_id tăng dần
@@ -90,7 +97,7 @@ exports.createTransaction = async (req, res) => {
       serial: card_seri,
       real_amount: chietkhau,
       request_id: request_id, // Lưu request_id vào CSDL
-      tran_id: response.data.trans_id,
+      tran_id: trans_id,
       mota: "Nạp thẻ cào",
     });
 

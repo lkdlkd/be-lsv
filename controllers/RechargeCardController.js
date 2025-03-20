@@ -162,7 +162,7 @@ exports.rechargeCardStatus = async () => {
                     } else {
                         console.log('Thiếu thông tin cấu hình Telegram.');
                     }
-                } else if (apiStatus === 3) {
+                } else if (apiStatus === 3 || apiStatus === 101) {
                     // 3: Thẻ lỗi
                     card.status = "failed";
                     card.real_amount = 0;
@@ -170,7 +170,7 @@ exports.rechargeCardStatus = async () => {
                 } else if (apiStatus === 4) {
                     // 4: Hệ thống bảo trì
                     // Bạn có thể cập nhật status thành "maintenance" hoặc giữ lại pending để thử lại sau
-                    card.status = "pending";
+                    card.status = "maintenance";
                     await card.save();
                 } else if (apiStatus === 99) {
                     // 99: Thẻ chờ xử lý - giữ nguyên trạng thái pending, không làm gì thêm

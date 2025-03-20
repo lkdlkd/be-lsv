@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../../models/User");
 const HistoryUser = require('../../models/HistoryUser');
 const axios = require('axios');
+const crypto = require("crypto");
 
 // Đăng nhập
 exports.login = async (req, res) => {
@@ -18,8 +19,6 @@ exports.login = async (req, res) => {
         return res.status(500).json({ error: "Có lỗi xảy ra khi đăng nhập" });
     }
 };
-
-// Đăng ký
 exports.register = async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -32,7 +31,7 @@ exports.register = async (req, res) => {
             return res.status(400).json({ error: "Mật khẩu phải có ít nhất 6 ký tự" });
         }
 
-        // Kiểm tra username không chứa ký tự đặc biệt (cho phép chữ cái, số và dấu gạch dưới)
+        // Kiểm tra username không chứa ký tự đặc biệt (chỉ cho phép chữ, số và gạch dưới)
         const usernameRegex = /^[a-zA-Z0-9_]+$/;
         if (!usernameRegex.test(username)) {
             return res.status(400).json({ error: "Tên người dùng không được chứa ký tự đặc biệt" });
@@ -53,53 +52,62 @@ exports.register = async (req, res) => {
         // Kiểm tra xem đã có admin chưa
         const isAdminExists = await User.findOne({ role: "admin" });
 
-        // Tạo người dùng mới, không cần truyền capbac vì schema đã có default
+        // **Tạo API key**
+        const apiKey = crypto.randomBytes(32).toString("hex");
+
+        // Tạo người dùng mới
         const user = new User({
             username,
             password,
             role: isAdminExists ? "user" : "admin",
-            token: "", // Tạm thời để rỗng, sẽ cập nhật sau khi tạo token
+            token: "", // Sẽ cập nhật sau
+            apiKey,  // **Lưu API key**
         });
+
         await user.save();
 
-        // Tạo token cho user mới (không hết hạn)
+        // **Tạo token đăng nhập**
         const token = jwt.sign(
             { username: user.username, userId: user._id, role: user.role },
             "secretKey"
-            // Không sử dụng expiresIn, token sẽ không hết hạn
         );
+
         // Cập nhật token vào user
         user.token = token;
         await user.save();
 
+        // **Thông báo qua Telegram**
         const taoluc = new Date();
         const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
         const telegramChatId = process.env.TELEGRAM_CHAT_ID;
         if (telegramBotToken && telegramChatId) {
             const telegramMessage = `📌 *Có khách mới được tạo!*\n\n` +
                 `👤 *Khách hàng:* ${username}\n` +
-                `🔹 *Tạo lúc:* ${taoluc.toLocaleString()}\n`;
+                `🔹 *Tạo lúc:* ${taoluc.toLocaleString()}\n` +
+                `🔑 *API Key:* \`${apiKey}\`\n`;
+
             try {
                 await axios.post(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
                     chat_id: telegramChatId,
                     text: telegramMessage,
+                    parse_mode: "Markdown",
                 });
                 console.log('Thông báo Telegram đã được gửi.');
             } catch (telegramError) {
                 console.error('Lỗi gửi thông báo Telegram:', telegramError.message);
             }
-        } else {
-            console.log('Thiếu thông tin cấu hình Telegram.');
         }
-        return res.status(201).json({ message: "Đăng ký thành công" });
+
+        return res.status(201).json({
+            message: "Đăng ký thành công",
+        });
+
     } catch (error) {
         console.error("Đăng ký lỗi:", error);
         return res.status(500).json({ error: "Có lỗi xảy ra. Vui lòng thử lại." });
     }
 };
 
-
-// Lấy số dư người dùng
 exports.getBalance = async (req, res) => {
     const { username } = req.query;
     try {
@@ -112,6 +120,7 @@ exports.getBalance = async (req, res) => {
         if (!token) {
             return res.status(401).json({ error: 'Token không hợp lệ' });
         }
+
         // Giải mã token
         let decoded;
         try {
@@ -120,7 +129,7 @@ exports.getBalance = async (req, res) => {
             return res.status(401).json({ error: 'Token hết hạn hoặc không hợp lệ' });
         }
 
-        // Tìm người dùng theo username (hoặc có thể tìm theo id từ token)
+        // Tìm người dùng theo username
         const user = await User.findOne({ username }).select("-password");
         if (!user) {
             return res.status(404).json({ error: 'Người dùng không tồn tại' });
@@ -128,15 +137,29 @@ exports.getBalance = async (req, res) => {
 
         // So sánh token trong header với token đã lưu của user
         if (user.token !== token) {
-            res.status(401).json({ error: 'Token không hợp lệ' });
-            return null;
+            return res.status(401).json({ error: 'Token không hợp lệ' });
         }
+
         // Kiểm tra xem token có phải của user đang yêu cầu không
         if (decoded.userId !== user._id.toString()) {
             return res.status(403).json({ error: 'Bạn không có quyền xem thông tin người dùng này' });
         }
 
-        return res.status(200).json(user);
+        // Trả về thông tin user nhưng thay token bằng apiKey
+        return res.status(200).json({
+            balance: user.balance,
+            capbac: user.capbac,
+            createdAt: user.createdAt,
+            role: user.role,
+            status: user.status,
+            token: user.apiKey, // Hiển thị API Key thay vì token
+            tongnap: user.tongnap,
+            tongnapthang: user.tongnapthang,
+            updatedAt: user.updatedAt,
+            userId: user._id,
+            username: user.username,
+        });
+
     } catch (error) {
         console.error("Get balance error:", error);
         return res.status(500).json({ error: 'Có lỗi xảy ra. Vui lòng thử lại sau.' });
@@ -525,80 +548,85 @@ exports.deleteUser = async (req, res) => {
 };
 
 // Đổi mật khẩu (chỉ admin hoặc chính chủ tài khoản mới có thể đổi mật khẩu)
+
 exports.changePassword = async (req, res) => {
     try {
         // Lấy token từ header
         const authHeader = req.headers.authorization;
         if (!authHeader) {
-            return res.status(401).json({ error: 'Không có token trong header' });
+            return res.status(401).json({ error: "Không có token trong header" });
         }
-        const token = authHeader.split(' ')[1];
+        const token = authHeader.split(" ")[1];
         if (!token) {
-            return res.status(401).json({ error: 'Token không hợp lệ' });
+            return res.status(401).json({ error: "Token không hợp lệ" });
         }
-
         // Giải mã token
         let decoded;
         try {
             decoded = jwt.verify(token, "secretKey");
         } catch (err) {
-            return res.status(401).json({ error: 'Token hết hạn hoặc không hợp lệ' });
+            return res.status(401).json({ error: "Token hết hạn hoặc không hợp lệ" });
         }
+
         const userr = await User.findById(decoded.userId);
         if (!userr) {
-            res.status(404).json({ error: 'Người dùng không tồn tại' });
-            return null;
+            return res.status(404).json({ error: "Người dùng không tồn tại" });
         }
 
         // So sánh token trong header với token đã lưu của user
         if (userr.token !== token) {
-            res.status(401).json({ error: 'Token không hợp lệ' });
-            return null;
+            return res.status(401).json({ error: "Token không hợp lệ" });
         }
+
         // Lấy id của user cần đổi mật khẩu
         const { id } = req.params;
         const { oldPassword, newPassword } = req.body;
 
         if (!newPassword) {
-            return res.status(400).json({ error: 'Mật khẩu mới không được để trống' });
+            return res.status(400).json({ error: "Mật khẩu mới không được để trống" });
         }
 
         // Kiểm tra quyền hạn
         if (decoded.role !== "admin" && decoded.userId !== id) {
-            return res.status(403).json({ error: 'Bạn không có quyền đổi mật khẩu cho người dùng này' });
+            return res.status(403).json({ error: "Bạn không có quyền đổi mật khẩu cho người dùng này" });
         }
 
         // Tìm user
         const user = await User.findById(id);
         if (!user) {
-            return res.status(404).json({ error: 'Người dùng không tồn tại' });
+            return res.status(404).json({ error: "Người dùng không tồn tại" });
         }
 
         // Nếu không phải admin, kiểm tra mật khẩu cũ
         if (decoded.role !== "admin") {
             if (!oldPassword) {
-                return res.status(400).json({ error: 'Vui lòng cung cấp mật khẩu hiện tại' });
+                return res.status(400).json({ error: "Vui lòng cung cấp mật khẩu hiện tại" });
             }
             const isMatch = await user.comparePassword(oldPassword);
             if (!isMatch) {
-                return res.status(400).json({ error: 'Mật khẩu hiện tại không chính xác' });
+                return res.status(400).json({ error: "Mật khẩu hiện tại không chính xác" });
             }
         }
 
         // Cập nhật mật khẩu mới
         user.password = newPassword;
 
-        // Tạo token cho user mới (không hết hạn)
+        // Tạo token mới
         const newToken = jwt.sign(
             { username: user.username, userId: user._id, role: user.role },
             "secretKey"
         );
 
-        user.token = newToken; // Cập nhật token mới vào CSDL
+        // **Tạo API key mới**
+        const newApiKey = crypto.randomBytes(32).toString("hex");
+
+        // Cập nhật thông tin mới vào database
+        user.token = newToken;
+        user.apiKey = newApiKey;
         await user.save();
 
         return res.status(200).json({
-            message: 'Đổi mật khẩu thành công',
+            message: "Đổi mật khẩu thành công",
             token: newToken
         });
     } catch (error) {

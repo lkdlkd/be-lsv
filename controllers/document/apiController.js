@@ -11,31 +11,22 @@ exports.getServices = async (req, res) => {
     try {
         const { key } = req.body;
         // Kiểm tra xem token có được gửi không
+        // Kiểm tra xem token có được gửi không
         if (!key) {
             return res.status(400).json({ success: false, message: "Token không được bỏ trống" });
         }
-
-        // Xác thực token
-        let decoded;
-        try {
-            decoded = jwt.verify(key, "secretKey");
-        } catch (err) {
-            return res.status(401).json({ success: false, message: "Token không hợp lệ" });
-        }
-
         // Lấy user từ DB dựa trên userId từ decoded token
-        const user = await User.findById(decoded.userId);
+        const user = await User.findOne({ apiKey: key });
         if (!user) {
             res.status(404).json({ error: 'Người dùng không tồn tại' });
             return null;
         }
 
         // So sánh token trong header với token đã lưu của user
-        if (user.token !== key) {
-            res.status(401).json({ error: 'Token không hợp lệ1' });
+        if (user.apiKey !== key) {
+            res.status(401).json({ error: 'api Key không hợp lệ1' });
             return null;
         }
-
         // Kiểm tra trạng thái người dùng trong CSDL (ví dụ: 'active')
         if (!user) {
             return res.status(404).json({ success: false, message: "Không tìm thấy người dùng" });
@@ -43,7 +34,6 @@ exports.getServices = async (req, res) => {
         if (user.status && user.status !== 'active') {
             return res.status(403).json({ success: false, message: "Người dùng không hoạt động" });
         }
-
         // Lấy danh sách dịch vụ từ CSDL
         const services = await Service.find();
         // Định dạng các trường cần hiển thị
@@ -75,33 +65,30 @@ exports.AddOrder = async (req, res) => {
     const { key, link, quantity, service, comments } = req.body;
     const magoi = service;
 
-    // Kiểm tra token có được gửi không
+    // Kiểm tra xem token có được gửi không
     if (!key) {
-        return res.status(400).json({ message: 'Token không được bỏ trống' });
+        return res.status(400).json({ success: false, message: "Token không được bỏ trống" });
     }
-
-    // Xác thực token
-    let decoded;
-    try {
-        decoded = jwt.verify(key, "secretKey");
-    } catch (err) {
-        return res.status(401).json({ message: 'Token hết hạn hoặc không hợp lệ' });
-    }
-
-
     // Lấy user từ DB dựa trên userId từ decoded token
-    const user = await User.findById(decoded.userId);
+    const user = await User.findOne({ apiKey: key });
     if (!user) {
         res.status(404).json({ error: 'Người dùng không tồn tại' });
         return null;
     }
 
     // So sánh token trong header với token đã lưu của user
-    if (user.token !== key) {
-        res.status(401).json({ error: 'Token không hợp lệ1' });
+    if (user.apiKey !== key) {
+        res.status(401).json({ error: 'api Key không hợp lệ1' });
         return null;
     }
-    const username = decoded.username
+    // Kiểm tra trạng thái người dùng trong CSDL (ví dụ: 'active')
+    if (!user) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy người dùng" });
+    }
+    if (user.status && user.status !== 'active') {
+        return res.status(403).json({ success: false, message: "Người dùng không hoạt động" });
+    }
+    const username = user.username
     const qty = Number(quantity);
     const formattedComments = comments ? comments.replace(/\r?\n/g, "\r\n") : "";
 
@@ -192,6 +179,8 @@ exports.AddOrder = async (req, res) => {
         const orderData = new Order({
             Madon: newMadon,
             username,
+            SvID: serviceFromDb.serviceId,
+
             orderId: purchaseResponse.data.order,
             namesv: serviceFromDb.maychu + " " + serviceFromDb.name,
             category: serviceFromDb.category,
@@ -264,70 +253,94 @@ exports.AddOrder = async (req, res) => {
 /* Hàm lấy danh sách dịch vụ */
 exports.getOrderStatus = async (req, res) => {
     try {
-        const { key, order } = req.body;
+        const { key, order, orders } = req.body;
 
-        // Kiểm tra xem token có được gửi không
+        // Kiểm tra xem API key có được gửi không
         if (!key) {
             return res.status(400).json({ success: false, message: "Token không được bỏ trống" });
         }
-        // Xác thực token
-        let decoded;
-        try {
-            decoded = jwt.verify(key, "secretKey");
-        } catch (err) {
-            return res.status(401).json({ success: false, message: "Token không hợp lệ" });
+
+        // Tìm user dựa trên apiKey
+        const user = await User.findOne({ apiKey: key });
+        if (!user) {
+            return res.status(404).json({ success: false, message: "Người dùng không tồn tại" });
         }
 
-        // Lấy user từ DB dựa trên userId từ decoded token
-        const user = await User.findById(decoded.userId);
-        if (!user) {
-            res.status(404).json({ error: 'Người dùng không tồn tại' });
-            return null;
-        }
-
-        // So sánh token trong header với token đã lưu của user
-        if (user.token !== key) {
-            res.status(401).json({ error: 'Token không hợp lệ1' });
-            return null;
-        }
-        // Kiểm tra trạng thái người dùng trong CSDL (ví dụ: 'active')
-        if (!user) {
-            return res.status(404).json({ success: false, message: "Không tìm thấy người dùng" });
-        }
+        // Kiểm tra trạng thái người dùng
         if (user.status && user.status !== 'active') {
             return res.status(403).json({ success: false, message: "Người dùng không hoạt động" });
         }
 
-        // Kiểm tra orders có được gửi hay không
-        if (!order) {
+        // Xử lý trường hợp có `orders` hoặc `order`
+        let orderNumbers = [];
+
+        if (orders) {
+            // `orders` là danh sách đơn hàng, cần format thành object
+            orderNumbers = Array.isArray(orders)
+                ? orders.map(num => Number(num))
+                : orders.split(',').map(num => Number(num.trim()));
+        } else if (order) {
+            // `order` là danh sách hoặc một đơn duy nhất
+            orderNumbers = [Number(order)];
+
+        } else {
             return res.status(400).json({ success: false, message: "Danh sách đơn hàng không được bỏ trống" });
         }
 
-        // Tách chuỗi orders thành mảng số (giả sử trường 'Madon' của đơn hàng là kiểu Number)
-        const orderNumbers = order.split(',').map(num => Number(num.trim()));
+        // Lấy các đơn hàng từ DB
+        const orderDocs = await Order.find({
+            Madon: { $in: orderNumbers },
+            // username: user.username // Kiểm tra đơn hàng có thuộc về user không
+        });
+        if (orders) {
+            // Nếu có `orders`, trả về object với `Madon` làm key
+            const formattedOrders = {};
+            orderDocs.forEach(order => {
+                if (order.username === user.username) {
+                    formattedOrders[order.Madon] = {
+                        charge: order.totalCost,
+                        start_count: order.start,
+                        status: order.status,
+                        remains: order.quantity - order.dachay,
+                        note: order.note || "",
+                        currency: "VND"
+                    };
+                }
+                else {
+                    formattedOrders[order.Madon] = {
+                        error: "Incorrect order ID"
+                    };
+                }
+            });
+            return res.status(200).json(formattedOrders);
+        }
+        // Giả sử orderDocs là mảng các đơn hàng từ DB
+        if (orderDocs.length > 0) {
+            const firstOrder = orderDocs[0];
+            let formattedOrder;
+            if (firstOrder.username === user.username) {
+                formattedOrder = {
+                    charge: firstOrder.totalCost,
+                    start_count: firstOrder.start,
+                    status: firstOrder.status,
+                    remains: firstOrder.quantity - firstOrder.dachay,
+                    note: firstOrder.note || "",
+                    currency: "VND"
+                };
+            } else {
+                formattedOrder = { order: firstOrder.Madon, error: "Incorrect order ID" };
+            }
+            return res.status(200).json(formattedOrder);
+        } else {
+            return res.status(200).json({ error: "Order not found" });
+        }
 
-        // Lấy các đơn hàng có Madon nằm trong mảng orderNumbers
-        const orderDocs = await Order.find({ Madon: { $in: orderNumbers } });
 
-        // Định dạng các trường cần hiển thị (có thể điều chỉnh theo yêu cầu)
-        const formattedOrders = orderDocs.map(order => ({
-            order: order.Madon,
-            charge: order.totalCost,
-            start_count: order.start,
-            status: order.status,
-            remains: order.quantity - order.dachay,
-            currency: "VND",
+        return res.status(200).json(formattedList);
 
-            // Madon: order.Madon,
-            // orderId: order.orderId,
-            // namesv: order.namesv,
-            // status: order.status,
-            // createdAt: order.createdAt,
-            // totalCost: order.totalCost,
-            // Thêm các trường khác nếu cần
-        }));
 
-        return res.status(200).json(formattedOrders);
+        // Nếu có `order`, trả về danh sách
+
     } catch (error) {
         console.error("Lỗi khi lấy trạng thái đơn:", error);
         return res.status(500).json({
@@ -337,6 +350,7 @@ exports.getOrderStatus = async (req, res) => {
         });
     }
 };
+
 exports.getme = async (req, res) => {
     try {
         const { key } = req.body;
@@ -345,24 +359,16 @@ exports.getme = async (req, res) => {
         if (!key) {
             return res.status(400).json({ success: false, message: "Token không được bỏ trống" });
         }
-        // Xác thực token
-        let decoded;
-        try {
-            decoded = jwt.verify(key, "secretKey");
-        } catch (err) {
-            return res.status(401).json({ success: false, message: "Token không hợp lệ" });
-        }
-
         // Lấy user từ DB dựa trên userId từ decoded token
-        const user = await User.findById(decoded.userId);
+        const user = await User.findOne({ apiKey: key });
         if (!user) {
             res.status(404).json({ error: 'Người dùng không tồn tại' });
             return null;
         }
 
         // So sánh token trong header với token đã lưu của user
-        if (user.token !== key) {
-            res.status(401).json({ error: 'Token không hợp lệ1' });
+        if (user.apiKey !== key) {
+            res.status(401).json({ error: 'api Key không hợp lệ1' });
             return null;
         }
         // Kiểm tra trạng thái người dùng trong CSDL (ví dụ: 'active')
