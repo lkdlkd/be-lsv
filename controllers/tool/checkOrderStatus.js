@@ -66,8 +66,8 @@ async function checkOrderStatus() {
     // Duyệt qua từng nhóm và gọi API kiểm tra trạng thái
     for (const groupKey in groups) {
       const { config, orders } = groups[groupKey];
-      
-      // Nếu chỉ có 1 đơn thì có thể gọi API theo kiểu hiện tại (gọi chung 1 payload)
+
+      // Nếu chỉ có 1 đơn thì gửi payload riêng cho đơn đó
       if (orders.length === 1) {
         const payload = {
           key: config.api_token,
@@ -97,35 +97,45 @@ async function checkOrderStatus() {
           console.error(`Lỗi khi gọi API trạng thái cho config ${config.name}:`, apiError.message);
         }
       } else {
-        // Nếu có nhiều đơn, gọi API riêng cho từng đơn
-        for (const order of orders) {
-          const payload = {
-            key: config.api_token,
-            action: "status",
-            order: order.orderId
-          };
-          console.log(`Gọi API trạng thái cho đơn ${order.orderId} với payload:`, payload);
+        // Nếu có nhiều đơn, gộp các orderId thành chuỗi ngăn cách bằng dấu phẩy
+        const payload = {
+          key: config.api_token,
+          action: "status",
+          orders: orders.map(order => order.orderId).join(',')
+        };
+        console.log(`Gọi API trạng thái cho các đơn với payload:`, payload);
+        
+        try {
+          const response = await axios.post(config.url_api, payload);
+          console.log("Trả về từ API:", response.data);
 
-          try {
-            const response = await axios.post(config.url_api, payload);
-            console.log(`Trả về từ API cho đơn ${order.orderId}:`, response.data);
-
-            const statusObj = Array.isArray(response.data) ? response.data[0] : response.data;
-            const mappedStatus = mapStatus(statusObj.status);
-            if (mappedStatus !== null) {
-              order.status = mappedStatus;
+          // API trả về object với key là orderId
+          const data = response.data;
+          for (const orderId in data) {
+            if (data.hasOwnProperty(orderId)) {
+              const statusObj = data[orderId];
+              // Tìm order tương ứng (ép kiểu về string nếu cần)
+              const order = orders.find(o => o.orderId.toString() === orderId);
+              if (order) {
+                const mappedStatus = mapStatus(statusObj.status);
+                if (mappedStatus !== null) {
+                  order.status = mappedStatus;
+                }
+                if (statusObj.start_count !== undefined) {
+                  order.start = statusObj.start_count;
+                }
+                if (statusObj.remains !== undefined) {
+                  order.dachay = order.quantity - statusObj.remains;
+                }
+                await order.save();
+                console.log(`Đã cập nhật đơn ${order.Madon}: status = ${mappedStatus || order.status}, dachay = ${order.dachay}`);
+              } else {
+                console.warn(`Không tìm thấy đơn nào tương ứng với orderId ${orderId}`);
+              }
             }
-            if (statusObj.start_count !== undefined) {
-              order.start = statusObj.start_count;
-            }
-            if (statusObj.remains !== undefined) {
-              order.dachay = order.quantity - statusObj.remains;
-            }
-            await order.save();
-            console.log(`Đã cập nhật đơn ${order.Madon}: status = ${mappedStatus || order.status}, dachay = ${order.dachay}`);
-          } catch (apiError) {
-            console.error(`Lỗi khi gọi API trạng thái cho đơn ${order.orderId} (config ${config.name}):`, apiError.message);
           }
+        } catch (apiError) {
+          console.error(`Lỗi khi gọi API trạng thái cho config ${config.name}:`, apiError.message);
         }
       }
     }
@@ -134,8 +144,9 @@ async function checkOrderStatus() {
   }
 }
 
-// Đặt lịch chạy cron job, ví dụ: chạy mỗi 5 phút
-cron.schedule('*/5 * * * *', () => {
+// Đặt lịch chạy cron job, ví dụ: chạy mỗi 1 phút
+cron.schedule('*/1 * * * *', () => {
   console.log("Cron job: Bắt đầu kiểm tra trạng thái đơn hàng");
   checkOrderStatus();
 });
+
