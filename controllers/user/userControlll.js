@@ -83,8 +83,7 @@ exports.register = async (req, res) => {
         if (telegramBotToken && telegramChatId) {
             const telegramMessage = `📌 *Có khách mới được tạo!*\n\n` +
                 `👤 *Khách hàng:* ${username}\n` +
-                `🔹 *Tạo lúc:* ${taoluc.toLocaleString()}\n` +
-                `🔑 *API Key:* \`${apiKey}\`\n`;
+                `🔹 *Tạo lúc:* ${taoluc.toLocaleString()}\n` ;
 
             try {
                 await axios.post(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
