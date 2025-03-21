@@ -93,6 +93,21 @@ exports.getStatistics = async (req, res) => {
             }
         ]);
         const tongdoanhthu = revenueAgg[0] ? revenueAgg[0].totalRevenue : 0;
+        const sstartDay = getStartOfDay();
+          // Tổng doanh thu từ các đơn hàng đã hoàn thành
+          const revenueDay = await Order.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: sstartDay },
+                    status: { $in: ["running", "In progress", "Processing", "Pending", "Completed"] }
+
+                }
+            },
+            {
+                $group: { _id: null, totalday: { $sum: "$totalCost" } }
+            }
+        ]);
+        const tongdoanhthuhnay = revenueDay[0] ? revenueDay[0].totalday : 0;
 
         // Tổng số nạp trong ngày với hành động chứa chữ "nạp tiền"
         const startDay = getStartOfDay();
@@ -139,7 +154,8 @@ exports.getStatistics = async (req, res) => {
             tongnapngay,
             tongnapthang,
             tongdanap,
-            tongdoanhthu
+            tongdoanhthu,
+            tongdoanhthuhnay
         });
     } catch (error) {
         console.error("Lỗi thống kê:", error);

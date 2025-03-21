@@ -26,7 +26,7 @@ async function checkOrderStatus() {
   try {
     // Lấy tất cả các đơn hàng đang chạy
     const runningOrders = await Order.find({
-      status: { $in: ["Pending", "In progress"] }
+      status: { $in: ["Pending", "In progress","Processing"] }
     });
     if (runningOrders.length === 0) {
       console.log("Không có đơn hàng đang chạy.");
